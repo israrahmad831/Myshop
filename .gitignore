@@ -1,0 +1,26 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+pubspec.lock
+*.g.dart
+*.freezed.dart
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Secrets / local config
+.env
+dart_defines.json
+*.keystore
+key.properties
+ios/Runner/GoogleService-Info.plist
+android/app/google-services.json
+
+# OS
+.DS_Store
+Thumbs.db
