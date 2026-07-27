@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/formatters.dart';
-import '../../../core/widgets/app_widgets.dart';
 import '../../customers/domain/customer.dart';
 import '../../customers/presentation/customer_providers.dart';
 import '../../khata/presentation/khata_providers.dart';

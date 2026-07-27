@@ -54,6 +54,11 @@ class _ReceiptFormScreenState extends ConsumerState<ReceiptFormScreen> {
         price: p.sellingPrice,
       ));
     });
+    // Feed the "top searched products" report (fire-and-forget).
+    final shopId = ref.read(currentShopIdProvider);
+    if (shopId != null) {
+      ref.read(productsRepositoryProvider).recordSearch(shopId, p.id, p.name);
+    }
   }
 
   void _addCustomItem(String name) {

@@ -10,6 +10,14 @@
 --       viewer : read-only.
 --   * Every policy is shop-scoped via the helper functions below.
 --
+-- IMPORTANT authoring rules (Supabase best practice — required for correctness
+-- and performance):
+--   * Every policy targets a role explicitly: `to authenticated`.
+--   * Every call to an auth helper is wrapped in a scalar sub-select
+--     `(select auth.uid())` / `(select public.is_shop_member(...))` so it is
+--     evaluated once per statement (an initplan) rather than inline per row.
+--     Inline `auth.uid()` in an INSERT/UPDATE WITH CHECK can be rejected.
+--
 -- Run this AFTER schema.sql.
 -- ============================================================================
 
@@ -20,7 +28,7 @@ create or replace function public.is_shop_member(p_shop uuid)
 returns boolean language sql stable security definer set search_path = public as $$
   select exists (
     select 1 from public.shop_members m
-    where m.shop_id = p_shop and m.user_id = auth.uid()
+    where m.shop_id = p_shop and m.user_id = (select auth.uid())
   );
 $$;
 
@@ -28,7 +36,7 @@ $$;
 create or replace function public.shop_role(p_shop uuid)
 returns member_role language sql stable security definer set search_path = public as $$
   select m.role from public.shop_members m
-  where m.shop_id = p_shop and m.user_id = auth.uid()
+  where m.shop_id = p_shop and m.user_id = (select auth.uid())
   limit 1;
 $$;
 
@@ -47,6 +55,12 @@ $$;
 create or replace function public.is_shop_owner(p_shop uuid)
 returns boolean language sql stable security definer set search_path = public as $$
   select public.shop_role(p_shop) = 'owner';
+$$;
+
+-- Caller's email from the JWT (used for invite matching).
+create or replace function public.jwt_email()
+returns text language sql stable as $$
+  select lower(nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'email');
 $$;
 
 -- ============================================================================
@@ -68,166 +82,181 @@ alter table public.product_search_stats  enable row level security;
 -- ============================================================================
 drop policy if exists profiles_select_self_or_shopmate on public.profiles;
 create policy profiles_select_self_or_shopmate on public.profiles
-  for select using (
-    id = auth.uid()
+  for select to authenticated using (
+    id = (select auth.uid())
     or exists (  -- can see profiles of people who share a shop with me
       select 1 from public.shop_members me
       join public.shop_members them on them.shop_id = me.shop_id
-      where me.user_id = auth.uid() and them.user_id = public.profiles.id
+      where me.user_id = (select auth.uid()) and them.user_id = public.profiles.id
     )
   );
 
 drop policy if exists profiles_update_self on public.profiles;
 create policy profiles_update_self on public.profiles
-  for update using (id = auth.uid()) with check (id = auth.uid());
+  for update to authenticated
+  using (id = (select auth.uid())) with check (id = (select auth.uid()));
 
 -- ============================================================================
 -- SHOPS
 -- ============================================================================
+-- Owner is allowed directly (owner_id) AND via membership. The direct owner
+-- check matters for INSERT ... RETURNING (return=representation): the owner's
+-- shop_members row is created by an AFTER-INSERT trigger that hasn't fired yet
+-- when the RETURNING row is evaluated, so without this the owner cannot "see"
+-- their just-created shop and the insert is rejected.
 drop policy if exists shops_select_member on public.shops;
 create policy shops_select_member on public.shops
-  for select using (public.is_shop_member(id));
+  for select to authenticated
+  using (owner_id = (select auth.uid()) or (select public.is_shop_member(id)));
 
 drop policy if exists shops_insert_self_owner on public.shops;
 create policy shops_insert_self_owner on public.shops
-  for insert with check (owner_id = auth.uid());
+  for insert to authenticated with check (owner_id = (select auth.uid()));
 
 drop policy if exists shops_update_admin on public.shops;
 create policy shops_update_admin on public.shops
-  for update using (public.can_manage(id)) with check (public.can_manage(id));
+  for update to authenticated
+  using ((select public.can_manage(id))) with check ((select public.can_manage(id)));
 
 drop policy if exists shops_delete_owner on public.shops;
 create policy shops_delete_owner on public.shops
-  for delete using (public.is_shop_owner(id));
+  for delete to authenticated using ((select public.is_shop_owner(id)));
 
 -- ============================================================================
 -- SHOP MEMBERS  (only owner can mutate; members can read their shop's roster)
 -- ============================================================================
 drop policy if exists members_select on public.shop_members;
 create policy members_select on public.shop_members
-  for select using (public.is_shop_member(shop_id));
+  for select to authenticated using ((select public.is_shop_member(shop_id)));
 
 drop policy if exists members_insert_owner on public.shop_members;
 create policy members_insert_owner on public.shop_members
-  for insert with check (public.is_shop_owner(shop_id));
+  for insert to authenticated with check ((select public.is_shop_owner(shop_id)));
 
 drop policy if exists members_update_owner on public.shop_members;
 create policy members_update_owner on public.shop_members
-  for update using (public.is_shop_owner(shop_id)) with check (public.is_shop_owner(shop_id));
+  for update to authenticated
+  using ((select public.is_shop_owner(shop_id))) with check ((select public.is_shop_owner(shop_id)));
 
 -- Owner can remove anyone; a member can remove (leave) themselves.
 drop policy if exists members_delete on public.shop_members;
 create policy members_delete on public.shop_members
-  for delete using (public.is_shop_owner(shop_id) or user_id = auth.uid());
+  for delete to authenticated
+  using ((select public.is_shop_owner(shop_id)) or user_id = (select auth.uid()));
 
 -- ============================================================================
 -- SHOP INVITES  (owner manages; invitee can see invites addressed to them)
 -- ============================================================================
 drop policy if exists invites_select on public.shop_invites;
 create policy invites_select on public.shop_invites
-  for select using (
-    public.is_shop_owner(shop_id)
-    or lower(email) = lower((auth.jwt() ->> 'email'))
+  for select to authenticated using (
+    (select public.is_shop_owner(shop_id))
+    or lower(email) = (select public.jwt_email())
   );
 
 drop policy if exists invites_insert_owner on public.shop_invites;
 create policy invites_insert_owner on public.shop_invites
-  for insert with check (public.is_shop_owner(shop_id));
+  for insert to authenticated with check ((select public.is_shop_owner(shop_id)));
 
 drop policy if exists invites_update on public.shop_invites;
 create policy invites_update on public.shop_invites
-  for update using (
-    public.is_shop_owner(shop_id)
-    or lower(email) = lower((auth.jwt() ->> 'email'))
+  for update to authenticated using (
+    (select public.is_shop_owner(shop_id))
+    or lower(email) = (select public.jwt_email())
   );
 
 drop policy if exists invites_delete_owner on public.shop_invites;
 create policy invites_delete_owner on public.shop_invites
-  for delete using (public.is_shop_owner(shop_id));
+  for delete to authenticated using ((select public.is_shop_owner(shop_id)));
 
 -- ============================================================================
--- Generic shop-scoped policy generator for domain tables
--- ============================================================================
+-- Domain tables (spelled out per table for clarity/auditing)
 -- read  : any member;  write: admin+ (or receipts: staff+)
--- We spell these out per table for clarity/auditing.
+-- ============================================================================
 
 -- PRODUCTS -------------------------------------------------------------------
 drop policy if exists products_select on public.products;
 create policy products_select on public.products
-  for select using (public.is_shop_member(shop_id));
+  for select to authenticated using ((select public.is_shop_member(shop_id)));
 drop policy if exists products_insert on public.products;
 create policy products_insert on public.products
-  for insert with check (public.can_manage(shop_id));
+  for insert to authenticated with check ((select public.can_manage(shop_id)));
 drop policy if exists products_update on public.products;
 create policy products_update on public.products
-  for update using (public.can_manage(shop_id)) with check (public.can_manage(shop_id));
+  for update to authenticated
+  using ((select public.can_manage(shop_id))) with check ((select public.can_manage(shop_id)));
 drop policy if exists products_delete on public.products;
 create policy products_delete on public.products
-  for delete using (public.can_manage(shop_id));
+  for delete to authenticated using ((select public.can_manage(shop_id)));
 
 -- CUSTOMERS ------------------------------------------------------------------
 drop policy if exists customers_select on public.customers;
 create policy customers_select on public.customers
-  for select using (public.is_shop_member(shop_id));
+  for select to authenticated using ((select public.is_shop_member(shop_id)));
 drop policy if exists customers_insert on public.customers;
 create policy customers_insert on public.customers
-  for insert with check (public.can_create_receipts(shop_id));
+  for insert to authenticated with check ((select public.can_create_receipts(shop_id)));
 drop policy if exists customers_update on public.customers;
 create policy customers_update on public.customers
-  for update using (public.can_manage(shop_id)) with check (public.can_manage(shop_id));
+  for update to authenticated
+  using ((select public.can_manage(shop_id))) with check ((select public.can_manage(shop_id)));
 drop policy if exists customers_delete on public.customers;
 create policy customers_delete on public.customers
-  for delete using (public.can_manage(shop_id));
+  for delete to authenticated using ((select public.can_manage(shop_id)));
 
 -- RECEIPTS -------------------------------------------------------------------
 drop policy if exists receipts_select on public.receipts;
 create policy receipts_select on public.receipts
-  for select using (public.is_shop_member(shop_id));
+  for select to authenticated using ((select public.is_shop_member(shop_id)));
 drop policy if exists receipts_insert on public.receipts;
 create policy receipts_insert on public.receipts
-  for insert with check (public.can_create_receipts(shop_id));
+  for insert to authenticated with check ((select public.can_create_receipts(shop_id)));
 drop policy if exists receipts_update on public.receipts;
 create policy receipts_update on public.receipts
-  for update using (public.can_manage(shop_id)) with check (public.can_manage(shop_id));
+  for update to authenticated
+  using ((select public.can_manage(shop_id))) with check ((select public.can_manage(shop_id)));
 drop policy if exists receipts_delete on public.receipts;
 create policy receipts_delete on public.receipts
-  for delete using (public.can_manage(shop_id));
+  for delete to authenticated using ((select public.can_manage(shop_id)));
 
 -- RECEIPT ITEMS --------------------------------------------------------------
 drop policy if exists receipt_items_select on public.receipt_items;
 create policy receipt_items_select on public.receipt_items
-  for select using (public.is_shop_member(shop_id));
+  for select to authenticated using ((select public.is_shop_member(shop_id)));
 drop policy if exists receipt_items_insert on public.receipt_items;
 create policy receipt_items_insert on public.receipt_items
-  for insert with check (public.can_create_receipts(shop_id));
+  for insert to authenticated with check ((select public.can_create_receipts(shop_id)));
 drop policy if exists receipt_items_update on public.receipt_items;
 create policy receipt_items_update on public.receipt_items
-  for update using (public.can_manage(shop_id)) with check (public.can_manage(shop_id));
+  for update to authenticated
+  using ((select public.can_manage(shop_id))) with check ((select public.can_manage(shop_id)));
 drop policy if exists receipt_items_delete on public.receipt_items;
 create policy receipt_items_delete on public.receipt_items
-  for delete using (public.can_manage(shop_id));
+  for delete to authenticated using ((select public.can_manage(shop_id)));
 
 -- KHATA TRANSACTIONS ---------------------------------------------------------
 drop policy if exists khata_select on public.khata_transactions;
 create policy khata_select on public.khata_transactions
-  for select using (public.is_shop_member(shop_id));
+  for select to authenticated using ((select public.is_shop_member(shop_id)));
 drop policy if exists khata_insert on public.khata_transactions;
 create policy khata_insert on public.khata_transactions
-  for insert with check (public.can_create_receipts(shop_id));
+  for insert to authenticated with check ((select public.can_create_receipts(shop_id)));
 drop policy if exists khata_update on public.khata_transactions;
 create policy khata_update on public.khata_transactions
-  for update using (public.can_manage(shop_id)) with check (public.can_manage(shop_id));
+  for update to authenticated
+  using ((select public.can_manage(shop_id))) with check ((select public.can_manage(shop_id)));
 drop policy if exists khata_delete on public.khata_transactions;
 create policy khata_delete on public.khata_transactions
-  for delete using (public.can_manage(shop_id));
+  for delete to authenticated using ((select public.can_manage(shop_id)));
 
 -- PRODUCT SEARCH STATS -------------------------------------------------------
 drop policy if exists search_stats_select on public.product_search_stats;
 create policy search_stats_select on public.product_search_stats
-  for select using (public.is_shop_member(shop_id));
+  for select to authenticated using ((select public.is_shop_member(shop_id)));
 drop policy if exists search_stats_upsert on public.product_search_stats;
 create policy search_stats_upsert on public.product_search_stats
-  for insert with check (public.is_shop_member(shop_id));
+  for insert to authenticated with check ((select public.is_shop_member(shop_id)));
 drop policy if exists search_stats_update on public.product_search_stats;
 create policy search_stats_update on public.product_search_stats
-  for update using (public.is_shop_member(shop_id)) with check (public.is_shop_member(shop_id));
+  for update to authenticated
+  using ((select public.is_shop_member(shop_id))) with check ((select public.is_shop_member(shop_id)));

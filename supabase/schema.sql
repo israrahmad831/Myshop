@@ -318,7 +318,10 @@ create trigger trg_assign_receipt_number
 -- ============================================================================
 -- Positive net_balance => customer owes the shop (receivable).
 -- Negative net_balance => shop owes the customer (payable).
-create or replace view public.customer_khata_balances as
+-- security_invoker=true so the view runs with the *querying user's* privileges
+-- and RLS on the base tables applies (never bypasses it via the view owner).
+create or replace view public.customer_khata_balances
+with (security_invoker = true) as
 select
   c.id            as customer_id,
   c.shop_id       as shop_id,
