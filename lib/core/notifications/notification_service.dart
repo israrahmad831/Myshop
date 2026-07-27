@@ -2,6 +2,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'web_notifier_stub.dart'
+    if (dart.library.html) 'web_notifier.dart' as web;
+
 /// Local notifications for optional unpaid-khata reminders.
 ///
 /// Fully **web-safe**: `flutter_local_notifications` has no web implementation,
@@ -26,6 +29,13 @@ class NotificationService {
 
   bool get _supported => !kIsWeb;
 
+  /// Instant notifications are available on web (browser Notification API) too.
+  bool get instantSupported => kIsWeb ? web.webNotificationsSupported : true;
+
+  /// Scheduled/daily reminders are only available on mobile/desktop — browsers
+  /// cannot fire background notifications without push infrastructure.
+  bool get dailySupported => !kIsWeb;
+
   Future<void> init() async {
     if (!_supported || _ready) return;
     try {
@@ -46,8 +56,9 @@ class NotificationService {
     }
   }
 
-  /// Ask the OS for notification permission (Android 13+, iOS/macOS).
+  /// Ask the OS (or browser) for notification permission.
   Future<bool> requestPermissions() async {
+    if (kIsWeb) return web.webRequestPermission();
     if (!_supported) return false;
     try {
       final android = _plugin.resolvePlatformSpecificImplementation<
@@ -74,8 +85,13 @@ class NotificationService {
         macOS: const DarwinNotificationDetails(),
       );
 
-  /// Show an immediate reminder (used by "Send reminder now").
+  /// Show an immediate reminder (used by "Send reminder now"). Works on web
+  /// (browser notification) and mobile/desktop (local notification).
   Future<void> showNow(String title, String body) async {
+    if (kIsWeb) {
+      await web.webShowNotification(title, body);
+      return;
+    }
     if (!_supported) return;
     await init();
     try {

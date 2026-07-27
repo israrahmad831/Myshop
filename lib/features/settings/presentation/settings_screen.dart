@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -106,23 +107,38 @@ class SettingsScreen extends ConsumerWidget {
           SwitchListTile(
             secondary: const Icon(Icons.notifications_active_outlined),
             title: const Text('Daily khata reminders'),
-            subtitle:
-                const Text('Remind me about customers who owe money'),
-            value: ref.watch(khataReminderProvider),
-            onChanged: (v) =>
-                ref.read(khataReminderProvider.notifier).set(v),
+            subtitle: const Text(kIsWeb
+                ? 'Scheduled reminders need the Android/iOS app'
+                : 'Remind me daily about customers who owe money'),
+            value: !kIsWeb && ref.watch(khataReminderProvider),
+            // Scheduled reminders can't run in a browser tab.
+            onChanged: kIsWeb
+                ? null
+                : (v) => ref.read(khataReminderProvider.notifier).set(v),
           ),
           ListTile(
             leading: const Icon(Icons.send_outlined),
             title: const Text('Send a reminder now'),
+            subtitle: kIsWeb
+                ? const Text('Shows a browser notification')
+                : null,
             onTap: () async {
+              final service = ref.read(notificationServiceProvider);
+              final granted = await service.requestPermissions();
+              if (!granted) {
+                if (context.mounted) {
+                  showSnack(context, 'Notification permission not granted',
+                      error: true);
+                }
+                return;
+              }
               final totals = ref.read(khataTotalsProvider);
               final currency = shop?.currency ?? 'PKR';
-              await ref.read(notificationServiceProvider).showNow(
-                    'Unpaid khata',
-                    'You will get ${Formatters.money(totals.receivable, currency)} '
-                        'from customers.',
-                  );
+              await service.showNow(
+                'Unpaid khata',
+                'You will get ${Formatters.money(totals.receivable, currency)} '
+                    'from customers.',
+              );
               if (context.mounted) {
                 showSnack(context, 'Reminder sent');
               }
