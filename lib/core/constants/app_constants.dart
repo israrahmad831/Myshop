@@ -37,6 +37,7 @@ class AppConstants {
   static const String prefLastShopId = 'last_shop_id';
   static const String prefThemeMode = 'theme_mode';
   static const String prefKhataReminders = 'khata_reminders_enabled';
+  static const String prefAppLock = 'app_lock_enabled';
 
   // Misc ----------------------------------------------------------------------
   static const Duration searchDebounce = Duration(milliseconds: 250);

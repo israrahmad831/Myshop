@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/notifications/notification_service.dart';
+import '../../../core/security/app_lock.dart';
 import '../../../core/theme/theme_controller.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/app_widgets.dart';
@@ -101,6 +102,31 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ),
           const Divider(),
+
+          // Security (mobile only — biometrics/device credential)
+          if (!kIsWeb) ...[
+            const _SectionLabel('Security'),
+            SwitchListTile(
+              secondary: const Icon(Icons.fingerprint),
+              title: const Text('App lock'),
+              subtitle: const Text(
+                  'Require fingerprint / device unlock to open the app'),
+              value: ref.watch(appLockEnabledProvider),
+              onChanged: (v) async {
+                final ok =
+                    await ref.read(appLockEnabledProvider.notifier).set(v);
+                if (!ok && context.mounted) {
+                  showSnack(
+                      context,
+                      v
+                          ? 'Could not enable — no fingerprint/PIN set up on this device'
+                          : 'Failed to update',
+                      error: true);
+                }
+              },
+            ),
+            const Divider(),
+          ],
 
           // Notifications
           const _SectionLabel('Notifications'),

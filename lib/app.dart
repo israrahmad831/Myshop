@@ -7,6 +7,7 @@ import 'core/config/env.dart';
 import 'core/constants/app_constants.dart';
 import 'core/local/sync_engine.dart';
 import 'core/router/app_router.dart';
+import 'core/security/app_lock_gate.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_controller.dart';
 import 'features/auth/presentation/auth_providers.dart';
@@ -39,6 +40,9 @@ class ShopManagerApp extends ConsumerWidget {
       darkTheme: AppTheme.dark(),
       themeMode: themeMode,
       routerConfig: router,
+      // Biometric app-lock overlay sits above every route.
+      builder: (context, child) =>
+          AppLockGate(child: child ?? const SizedBox.shrink()),
     );
   }
 }

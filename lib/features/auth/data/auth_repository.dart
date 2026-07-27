@@ -1,5 +1,5 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/config/env.dart';
@@ -39,24 +39,17 @@ class AuthRepository {
     );
   }
 
-  /// Native Google sign-in exchanged for a Supabase session via id token.
+  /// Google sign-in via Supabase's OAuth redirect flow (works on both web and
+  /// mobile). Only the Google provider needs configuring in Supabase — no
+  /// client ids baked into the app.
+  ///
+  /// * Web: redirects the page to Google and back to the app origin.
+  /// * Mobile: opens a browser tab and returns via the `io.shopmanager://`
+  ///   deep link (registered in AndroidManifest / Info.plist).
   Future<void> signInWithGoogle() async {
-    final google = GoogleSignIn(
-      clientId: Env.googleIosClientId.isEmpty ? null : Env.googleIosClientId,
-      serverClientId:
-          Env.googleWebClientId.isEmpty ? null : Env.googleWebClientId,
-    );
-    final account = await google.signIn();
-    if (account == null) return; // user cancelled
-    final auth = await account.authentication;
-    final idToken = auth.idToken;
-    if (idToken == null) {
-      throw const AuthException('Missing Google ID token.');
-    }
-    await _client.auth.signInWithIdToken(
-      provider: OAuthProvider.google,
-      idToken: idToken,
-      accessToken: auth.accessToken,
+    await _client.auth.signInWithOAuth(
+      OAuthProvider.google,
+      redirectTo: kIsWeb ? Uri.base.origin : Env.authRedirectUrl,
     );
   }
 
