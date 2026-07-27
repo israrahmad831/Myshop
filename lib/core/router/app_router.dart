@@ -12,6 +12,7 @@ import '../../features/customers/presentation/customer_detail_screen.dart';
 import '../../features/customers/presentation/customer_form_screen.dart';
 import '../../features/dashboard/presentation/home_gate.dart';
 import '../../features/dashboard/presentation/home_shell.dart';
+import '../../features/khata/presentation/khata_detail_screen.dart';
 import '../../features/khata/presentation/khata_entry_screen.dart';
 import '../../features/members/presentation/members_screen.dart';
 import '../../features/products/presentation/product_detail_screen.dart';
@@ -154,6 +155,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, state) => KhataEntryScreen(
           customerId: state.uri.queryParameters['customer']!,
         ),
+      ),
+
+      // Dedicated per-customer khata ledger page.
+      GoRoute(
+        path: '/khata/customer/:id',
+        builder: (_, state) =>
+            KhataDetailScreen(customerId: state.pathParameters['id']!),
       ),
     ],
     errorBuilder: (_, state) => Scaffold(

@@ -85,6 +85,31 @@ class MembersRepository {
     }
   }
 
+  /// Pending invites addressed to the current user's email (across all shops).
+  /// RLS also allows this; we filter by the signed-in email.
+  Future<List<({String id, String shopName, String role})>>
+      myPendingInvites() async {
+    try {
+      final email = _client.auth.currentUser?.email?.toLowerCase();
+      if (email == null) return const [];
+      final rows = await _client
+          .from(AppConstants.tblShopInvites)
+          .select('id, role, shops(name)')
+          .eq('email', email)
+          .eq('status', 'pending');
+      return (rows as List).map((r) {
+        final m = (r as Map).cast<String, dynamic>();
+        return (
+          id: m['id'] as String,
+          shopName: (m['shops'] as Map?)?['name'] as String? ?? 'Shop',
+          role: m['role'] as String,
+        );
+      }).toList();
+    } catch (e) {
+      throw mapError(e);
+    }
+  }
+
   /// Accept an invite (called by the invited user) via the RPC.
   Future<String> acceptInvite(String inviteId) async {
     try {

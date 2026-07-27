@@ -51,6 +51,7 @@ class _ReceiptFormScreenState extends ConsumerState<ReceiptFormScreen> {
         productId: p.id,
         productName: p.name,
         quantity: 1,
+        unit: p.unit,
         price: p.sellingPrice,
       ));
     });
@@ -114,13 +115,25 @@ class _ReceiptFormScreenState extends ConsumerState<ReceiptFormScreen> {
     final shopId = ref.watch(currentShopIdProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('New receipt')),
+      appBar: AppBar(
+        title: const Text('New receipt'),
+        actions: [
+          TextButton.icon(
+            onPressed: _saving ? null : _save,
+            icon: const Icon(Icons.check),
+            label: const Text('Save'),
+          ),
+        ],
+      ),
       bottomNavigationBar: _TotalBar(
         total: Formatters.money(_total, currency),
         saving: _saving,
         onSave: _save,
       ),
-      body: ListView(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 720),
+          child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           // --- Customer (optional) --------------------------------------
@@ -146,7 +159,7 @@ class _ReceiptFormScreenState extends ConsumerState<ReceiptFormScreen> {
           const SizedBox(height: 20),
 
           // --- Product type-ahead ---------------------------------------
-          Text('Add product',
+          Text('Add item',
               style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: 8),
           _ProductTypeAhead(
@@ -158,7 +171,19 @@ class _ReceiptFormScreenState extends ConsumerState<ReceiptFormScreen> {
                     .read(productsRepositoryProvider)
                     .suggest(shopId, query),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
+          // Add a fully manual/custom line the user fills in themselves.
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: () => setState(() {
+                _items.add(ReceiptItem(id: _uuid.v4(), productName: ''));
+              }),
+              icon: const Icon(Icons.playlist_add),
+              label: const Text('Add custom item'),
+            ),
+          ),
+          const SizedBox(height: 8),
 
           // --- Line items -----------------------------------------------
           if (_items.isEmpty)
@@ -208,6 +233,8 @@ class _ReceiptFormScreenState extends ConsumerState<ReceiptFormScreen> {
               bold: true),
           const SizedBox(height: 80),
         ],
+          ),
+        ),
       ),
     );
   }
@@ -312,8 +339,17 @@ class _LineItemCard extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: Text(item.productName,
-                      style: const TextStyle(fontWeight: FontWeight.w600)),
+                  child: TextFormField(
+                    initialValue: item.productName,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      hintText: 'Item name',
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    onChanged: (v) => onChanged(item.copyWith(productName: v)),
+                  ),
                 ),
                 Text(Formatters.money(item.lineTotal, currency),
                     style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -325,6 +361,7 @@ class _LineItemCard extends StatelessWidget {
             ),
             Row(children: [
               Expanded(
+                flex: 2,
                 child: _MiniField(
                   label: 'Qty',
                   initial: item.quantity,
@@ -333,18 +370,21 @@ class _LineItemCard extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: _MiniField(
-                  label: 'Price',
-                  initial: item.price,
-                  onChanged: (v) => onChanged(item.copyWith(price: v)),
+                flex: 2,
+                child: _MiniTextField(
+                  label: 'Unit',
+                  initial: item.unit ?? '',
+                  hint: 'kg',
+                  onChanged: (v) => onChanged(item.copyWith(unit: v)),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
+                flex: 3,
                 child: _MiniField(
-                  label: 'Disc.',
-                  initial: item.discount,
-                  onChanged: (v) => onChanged(item.copyWith(discount: v)),
+                  label: 'Price',
+                  initial: item.price,
+                  onChanged: (v) => onChanged(item.copyWith(price: v)),
                 ),
               ),
             ]),
@@ -379,6 +419,36 @@ class _MiniField extends StatelessWidget {
             const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       ),
       onChanged: (v) => onChanged(num.tryParse(v.trim()) ?? 0),
+    );
+  }
+}
+
+/// Small free-text field (used for the optional per-line unit label).
+class _MiniTextField extends StatelessWidget {
+  const _MiniTextField({
+    required this.label,
+    required this.initial,
+    required this.onChanged,
+    this.hint,
+  });
+  final String label;
+  final String initial;
+  final String? hint;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      initialValue: initial,
+      textCapitalization: TextCapitalization.none,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        isDense: true,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      ),
+      onChanged: onChanged,
     );
   }
 }

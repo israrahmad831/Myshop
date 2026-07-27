@@ -8,6 +8,7 @@ class ReceiptItem extends Equatable {
     required this.productName,
     this.productId,
     this.quantity = 1,
+    this.unit,
     this.price = 0,
     this.discount = 0,
   });
@@ -16,16 +17,26 @@ class ReceiptItem extends Equatable {
   final String? productId;
   final String productName;
   final num quantity;
+
+  /// Optional label shown with the quantity, e.g. "kg", "litre", "pcs".
+  final String? unit;
   final num price;
   final num discount;
 
   num get lineTotal => (quantity * price) - discount;
+
+  /// "3 kg" or just "3" when no unit.
+  String qtyLabel(String Function(num) fmt) =>
+      unit == null || unit!.trim().isEmpty
+          ? fmt(quantity)
+          : '${fmt(quantity)} ${unit!.trim()}';
 
   factory ReceiptItem.fromJson(Map<String, dynamic> j) => ReceiptItem(
         id: j['id'] as String,
         productId: j['product_id'] as String?,
         productName: j['product_name'] as String,
         quantity: (j['quantity'] as num?) ?? 1,
+        unit: j['unit'] as String?,
         price: (j['price'] as num?) ?? 0,
         discount: (j['discount'] as num?) ?? 0,
       );
@@ -41,6 +52,7 @@ class ReceiptItem extends Equatable {
         'product_id': productId,
         'product_name': productName,
         'quantity': quantity,
+        'unit': unit,
         'price': price,
         'discount': discount,
         'line_total': lineTotal,
@@ -50,6 +62,7 @@ class ReceiptItem extends Equatable {
     String? productName,
     String? productId,
     num? quantity,
+    String? unit,
     num? price,
     num? discount,
   }) =>
@@ -58,13 +71,14 @@ class ReceiptItem extends Equatable {
         productId: productId ?? this.productId,
         productName: productName ?? this.productName,
         quantity: quantity ?? this.quantity,
+        unit: unit ?? this.unit,
         price: price ?? this.price,
         discount: discount ?? this.discount,
       );
 
   @override
   List<Object?> get props =>
-      [id, productId, productName, quantity, price, discount];
+      [id, productId, productName, quantity, unit, price, discount];
 }
 
 /// A receipt is an independent record (no effect on inventory or khata).

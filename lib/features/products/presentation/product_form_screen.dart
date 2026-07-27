@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -35,7 +35,8 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   final _description = TextEditingController();
   String _unit = 'pcs';
   String? _imageUrl;
-  File? _pickedImage;
+  Uint8List? _pickedBytes; // works on web + mobile
+  String _pickedExt = 'jpg';
   bool _saving = false;
   Product? _existing;
 
@@ -78,7 +79,17 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     final picker = ImagePicker();
     final xfile = await picker.pickImage(
         source: ImageSource.gallery, maxWidth: 1200, imageQuality: 80);
-    if (xfile != null) setState(() => _pickedImage = File(xfile.path));
+    if (xfile == null) return;
+    final bytes = await xfile.readAsBytes();
+    final ext = xfile.name.contains('.')
+        ? xfile.name.split('.').last.toLowerCase()
+        : 'jpg';
+    if (mounted) {
+      setState(() {
+        _pickedBytes = bytes;
+        _pickedExt = ext;
+      });
+    }
   }
 
   Future<void> _save() async {
@@ -91,11 +102,12 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
       // Build the product (with a stable id so we can upload its image first).
       final id = _existing?.id ?? repo.newId();
       var imageUrl = _imageUrl;
-      if (_pickedImage != null) {
+      if (_pickedBytes != null) {
         imageUrl = await ref.read(imageUploaderProvider).uploadProductImage(
               shopId: shopId,
               productId: id,
-              file: _pickedImage!,
+              bytes: _pickedBytes!,
+              fileExt: _pickedExt,
             );
       }
       final product = Product(
@@ -157,9 +169,9 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                             .colorScheme
                             .surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(16),
-                        image: _pickedImage != null
+                        image: _pickedBytes != null
                             ? DecorationImage(
-                                image: FileImage(_pickedImage!),
+                                image: MemoryImage(_pickedBytes!),
                                 fit: BoxFit.cover)
                             : (_imageUrl != null
                                 ? DecorationImage(
@@ -167,7 +179,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                                     fit: BoxFit.cover)
                                 : null),
                       ),
-                      child: (_pickedImage == null && _imageUrl == null)
+                      child: (_pickedBytes == null && _imageUrl == null)
                           ? const Icon(Icons.add_a_photo_outlined, size: 32)
                           : null,
                     ),

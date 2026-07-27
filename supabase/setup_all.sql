@@ -179,6 +179,7 @@ create table if not exists public.receipt_items (
   product_id   uuid references public.products(id) on delete set null,
   product_name text not null,                    -- snapshot at time of sale
   quantity     numeric(14,2) not null default 1,
+  unit         text,                              -- optional label, e.g. "kg"
   price        numeric(14,2) not null default 0, -- editable selling price
   discount     numeric(14,2) not null default 0, -- line-level discount
   line_total   numeric(14,2) not null default 0, -- quantity*price - discount
@@ -603,41 +604,43 @@ create policy search_stats_update on public.product_search_stats
 -- Convention: objects are stored under  <shop_id>/<product_id>/<file>
 -- so the first path segment is the shop id and we can scope access by it.
 -- Store only the public/signed URL in products.image_url.
+--
+-- Policies target `authenticated` and wrap helper calls in `(select ...)`,
+-- matching policies.sql.
 -- ============================================================================
 
 insert into storage.buckets (id, name, public)
 values ('product-images', 'product-images', true)
 on conflict (id) do nothing;
 
--- Read: any member of the owning shop (bucket is public for CDN URLs, but we
--- still gate authenticated listing/download through RLS).
+-- Read: any member of the owning shop.
 drop policy if exists product_images_read on storage.objects;
 create policy product_images_read on storage.objects
-  for select using (
+  for select to authenticated using (
     bucket_id = 'product-images'
-    and public.is_shop_member(((storage.foldername(name))[1])::uuid)
+    and (select public.is_shop_member(((storage.foldername(name))[1])::uuid))
   );
 
 -- Write/update/delete: admin+ of the owning shop.
 drop policy if exists product_images_insert on storage.objects;
 create policy product_images_insert on storage.objects
-  for insert with check (
+  for insert to authenticated with check (
     bucket_id = 'product-images'
-    and public.can_manage(((storage.foldername(name))[1])::uuid)
+    and (select public.can_manage(((storage.foldername(name))[1])::uuid))
   );
 
 drop policy if exists product_images_update on storage.objects;
 create policy product_images_update on storage.objects
-  for update using (
+  for update to authenticated using (
     bucket_id = 'product-images'
-    and public.can_manage(((storage.foldername(name))[1])::uuid)
+    and (select public.can_manage(((storage.foldername(name))[1])::uuid))
   );
 
 drop policy if exists product_images_delete on storage.objects;
 create policy product_images_delete on storage.objects
-  for delete using (
+  for delete to authenticated using (
     bucket_id = 'product-images'
-    and public.can_manage(((storage.foldername(name))[1])::uuid)
+    and (select public.can_manage(((storage.foldername(name))[1])::uuid))
   );
 -- ============================================================================
 -- RPC functions callable from the Flutter client via supabase.rpc(...)

@@ -66,7 +66,7 @@ class ReceiptPdfService {
                 for (final it in receipt.items)
                   [
                     it.productName,
-                    Formatters.qty(it.quantity),
+                    it.qtyLabel(Formatters.qty),
                     Formatters.qty(it.price),
                     Formatters.qty(it.lineTotal),
                   ],

@@ -104,7 +104,7 @@ class ReceiptDetailScreen extends ConsumerWidget {
                   ListTile(
                     title: Text(it.productName),
                     subtitle: Text(
-                        '${Formatters.qty(it.quantity)} × ${Formatters.money(it.price, currency)}'
+                        '${it.qtyLabel(Formatters.qty)} × ${Formatters.money(it.price, currency)}'
                         '${it.discount > 0 ? '  (- ${Formatters.qty(it.discount)})' : ''}'),
                     trailing: Text(Formatters.money(it.lineTotal, currency),
                         style: const TextStyle(fontWeight: FontWeight.w600)),

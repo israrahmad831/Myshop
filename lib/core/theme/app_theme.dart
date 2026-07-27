@@ -46,7 +46,11 @@ class AppTheme {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          minimumSize: const Size.fromHeight(52),
+          // Height only — do NOT force full width here. Size.fromHeight sets an
+          // infinite min-width, which crushes sibling widgets in a Row. Forms
+          // that want full-width buttons stretch them via the parent Column.
+          minimumSize: const Size(64, 52),
+          padding: const EdgeInsets.symmetric(horizontal: 20),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),

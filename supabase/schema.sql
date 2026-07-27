@@ -179,6 +179,7 @@ create table if not exists public.receipt_items (
   product_id   uuid references public.products(id) on delete set null,
   product_name text not null,                    -- snapshot at time of sale
   quantity     numeric(14,2) not null default 1,
+  unit         text,                              -- optional label, e.g. "kg"
   price        numeric(14,2) not null default 0, -- editable selling price
   discount     numeric(14,2) not null default 0, -- line-level discount
   line_total   numeric(14,2) not null default 0, -- quantity*price - discount
