@@ -22,7 +22,9 @@ subprojects {
     afterEvaluate {
         val androidExt = project.extensions.findByName("android")
         if (androidExt is com.android.build.gradle.BaseExtension) {
-            androidExt.compileSdkVersion(35)
+            // 36 is required by newer plugins (e.g. sqflite_android references
+            // API-36 symbols like Build.VERSION_CODES.BAKLAVA / Thread.threadId).
+            androidExt.compileSdkVersion(36)
         }
     }
 }

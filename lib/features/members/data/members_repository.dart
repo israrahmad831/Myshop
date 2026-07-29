@@ -63,6 +63,22 @@ class MembersRepository {
     }
   }
 
+  /// Current user leaves a shop (deletes their own membership row). RLS allows
+  /// members to delete their own row.
+  Future<void> leaveShop(String shopId) async {
+    try {
+      final uid = _client.auth.currentUser?.id;
+      if (uid == null) return;
+      await _client
+          .from(AppConstants.tblShopMembers)
+          .delete()
+          .eq('shop_id', shopId)
+          .eq('user_id', uid);
+    } catch (e) {
+      throw mapError(e);
+    }
+  }
+
   Future<void> removeMember(String memberId) async {
     try {
       await _client

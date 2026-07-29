@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart' show networkImage;
 
 import '../../../core/utils/formatters.dart';
 import '../../shops/domain/shop.dart';
@@ -15,12 +16,32 @@ class ReceiptPdfService {
     final doc = pw.Document();
     final currency = shop.currency;
 
+    // Fetch the header banner image (if configured). Never fail the receipt
+    // over a missing/broken image.
+    pw.ImageProvider? header;
+    if (shop.receiptHeaderUrl != null &&
+        shop.receiptHeaderUrl!.trim().isNotEmpty) {
+      try {
+        header = await networkImage(shop.receiptHeaderUrl!);
+      } catch (_) {
+        header = null;
+      }
+    }
+
     doc.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.a5,
         build: (context) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.stretch,
           children: [
+            // Header banner image (top of receipt)
+            if (header != null) ...[
+              pw.Center(
+                child: pw.Image(header, height: 70, fit: pw.BoxFit.contain),
+              ),
+              pw.SizedBox(height: 8),
+            ],
+
             // Header
             pw.Text(shop.name,
                 style: const pw.TextStyle(
@@ -84,6 +105,14 @@ class ReceiptPdfService {
                 bold: true),
 
             pw.Spacer(),
+
+            // Shop stamp (owner / shop details) aligned to the right.
+            pw.Align(
+              alignment: pw.Alignment.centerRight,
+              child: _stamp(shop),
+            ),
+            pw.SizedBox(height: 8),
+
             if (shop.receiptFooter != null &&
                 shop.receiptFooter!.trim().isNotEmpty)
               pw.Center(
@@ -105,6 +134,43 @@ class ReceiptPdfService {
     return pw.Row(
       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
       children: [pw.Text(label, style: style), pw.Text(value, style: style)],
+    );
+  }
+
+  /// A bordered "stamp" box with the shop's identity, printed on each receipt.
+  pw.Widget _stamp(Shop shop) {
+    final lines = <pw.Widget>[
+      pw.Text(shop.name,
+          style: const pw.TextStyle(
+              fontSize: 11, fontWeight: pw.FontWeight.bold)),
+      if (shop.ownerName != null && shop.ownerName!.trim().isNotEmpty)
+        pw.Text('Owner: ${shop.ownerName}',
+            style: const pw.TextStyle(fontSize: 9)),
+      if (shop.phone != null && shop.phone!.trim().isNotEmpty)
+        pw.Text('Ph: ${shop.phone}', style: const pw.TextStyle(fontSize: 9)),
+      if (shop.address != null && shop.address!.trim().isNotEmpty)
+        pw.Text(shop.address!, style: const pw.TextStyle(fontSize: 9)),
+    ];
+    return pw.Container(
+      padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: PdfColors.blue800, width: 1.5),
+        borderRadius: pw.BorderRadius.circular(6),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        mainAxisSize: pw.MainAxisSize.min,
+        children: [
+          pw.Text('SHOP STAMP',
+              style: const pw.TextStyle(
+                  fontSize: 7,
+                  color: PdfColors.blue800,
+                  fontWeight: pw.FontWeight.bold,
+                  letterSpacing: 1)),
+          pw.SizedBox(height: 2),
+          ...lines,
+        ],
+      ),
     );
   }
 }

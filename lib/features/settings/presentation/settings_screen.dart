@@ -11,6 +11,8 @@ import '../../../core/widgets/app_widgets.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../auth/presentation/auth_providers.dart';
 import '../../khata/presentation/khata_providers.dart';
+import '../../members/data/members_repository.dart';
+import '../../shops/data/shops_repository.dart';
 import '../../shops/presentation/shop_providers.dart';
 import 'reminder_controller.dart';
 
@@ -72,6 +74,71 @@ class SettingsScreen extends ConsumerWidget {
                 if (context.mounted) context.go('/shops');
               },
             ),
+            // Owner can delete the shop; other members can leave it.
+            if (shop.isOwner)
+              ListTile(
+                leading: Icon(Icons.delete_forever_outlined,
+                    color: Theme.of(context).colorScheme.error),
+                title: Text('Delete shop',
+                    style:
+                        TextStyle(color: Theme.of(context).colorScheme.error)),
+                subtitle: const Text('Permanently deletes all its data'),
+                onTap: () async {
+                  final ok = await confirmDialog(context,
+                      title: 'Delete "${shop.name}"?',
+                      message:
+                          'This permanently deletes the shop and ALL its products, '
+                          'customers, receipts and khata. This cannot be undone.',
+                      confirmLabel: 'Delete',
+                      destructive: true);
+                  if (!ok) return;
+                  try {
+                    await ref
+                        .read(shopsRepositoryProvider)
+                        .deleteShop(shop.id);
+                    await ref.read(currentShopIdProvider.notifier).select(null);
+                    ref.invalidate(myShopsProvider);
+                    if (context.mounted) {
+                      showSnack(context, 'Shop deleted');
+                      context.go('/');
+                    }
+                  } catch (e) {
+                    if (context.mounted) showSnack(context, '$e', error: true);
+                  }
+                },
+              )
+            else
+              ListTile(
+                leading: Icon(Icons.logout,
+                    color: Theme.of(context).colorScheme.error),
+                title: Text('Leave shop',
+                    style:
+                        TextStyle(color: Theme.of(context).colorScheme.error)),
+                subtitle: const Text('You will lose access to this shop'),
+                onTap: () async {
+                  final ok = await confirmDialog(context,
+                      title: 'Leave "${shop.name}"?',
+                      message:
+                          'You will no longer be able to access this shop unless '
+                          'invited again.',
+                      confirmLabel: 'Leave',
+                      destructive: true);
+                  if (!ok) return;
+                  try {
+                    await ref
+                        .read(membersRepositoryProvider)
+                        .leaveShop(shop.id);
+                    await ref.read(currentShopIdProvider.notifier).select(null);
+                    ref.invalidate(myShopsProvider);
+                    if (context.mounted) {
+                      showSnack(context, 'Left shop');
+                      context.go('/');
+                    }
+                  } catch (e) {
+                    if (context.mounted) showSnack(context, '$e', error: true);
+                  }
+                },
+              ),
             const Divider(),
           ],
 
