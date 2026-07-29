@@ -27,7 +27,9 @@ dependencies:
   go_router: ^14.2.0
 
   # --- Networking / connectivity --------------------------------------------
-  connectivity_plus: ^6.0.3
+  # Pinned below 6.1.0: 6.1.x switched to a jni-based Android impl whose
+  # build.gradle is incompatible with the current Gradle/AGP.
+  connectivity_plus: ">=6.0.3 <6.1.0"
   http: ^1.2.2
 
   # --- PDF / printing / sharing ---------------------------------------------
@@ -48,6 +50,12 @@ dependencies:
   flutter_local_notifications: ^17.1.2
   local_auth: ^2.3.0
   equatable: ^2.0.5
+
+# Some *_android plugin implementations recently switched to a jni-based
+# backend (jni 1.0.1) whose build.gradle is incompatible with the current
+# Gradle/AGP. Pin them below those versions until the toolchain catches up.
+dependency_overrides:
+  path_provider_android: ">=2.2.0 <2.3.0"
 
 dev_dependencies:
   flutter_test:

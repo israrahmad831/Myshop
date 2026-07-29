@@ -11,6 +11,8 @@ class Shop extends Equatable {
     this.logoUrl,
     this.currency = 'PKR',
     this.receiptFooter,
+    this.receiptHeaderUrl,
+    this.ownerName,
     this.role,
     this.createdAt,
   });
@@ -23,6 +25,12 @@ class Shop extends Equatable {
   final String? logoUrl;
   final String currency;
   final String? receiptFooter;
+
+  /// Banner image shown at the top of printed receipts.
+  final String? receiptHeaderUrl;
+
+  /// Owner name shown on the receipt stamp.
+  final String? ownerName;
 
   /// The current user's role in this shop (joined from shop_members).
   final String? role;
@@ -42,6 +50,8 @@ class Shop extends Equatable {
         logoUrl: json['logo_url'] as String?,
         currency: (json['currency'] as String?) ?? 'PKR',
         receiptFooter: json['receipt_footer'] as String?,
+        receiptHeaderUrl: json['receipt_header_url'] as String?,
+        ownerName: json['owner_name'] as String?,
         role: role ?? json['role'] as String?,
         createdAt: json['created_at'] == null
             ? null
@@ -56,6 +66,8 @@ class Shop extends Equatable {
         'logo_url': logoUrl,
         'currency': currency,
         'receipt_footer': receiptFooter,
+        'receipt_header_url': receiptHeaderUrl,
+        'owner_name': ownerName,
       };
 
   Map<String, dynamic> toUpdate() => {
@@ -65,6 +77,8 @@ class Shop extends Equatable {
         'logo_url': logoUrl,
         'currency': currency,
         'receipt_footer': receiptFooter,
+        'receipt_header_url': receiptHeaderUrl,
+        'owner_name': ownerName,
       };
 
   Shop copyWith({
@@ -74,6 +88,8 @@ class Shop extends Equatable {
     String? logoUrl,
     String? currency,
     String? receiptFooter,
+    String? receiptHeaderUrl,
+    String? ownerName,
     String? role,
   }) =>
       Shop(
@@ -85,10 +101,13 @@ class Shop extends Equatable {
         logoUrl: logoUrl ?? this.logoUrl,
         currency: currency ?? this.currency,
         receiptFooter: receiptFooter ?? this.receiptFooter,
+        receiptHeaderUrl: receiptHeaderUrl ?? this.receiptHeaderUrl,
+        ownerName: ownerName ?? this.ownerName,
         role: role ?? this.role,
         createdAt: createdAt,
       );
 
   @override
-  List<Object?> get props => [id, name, role, currency];
+  List<Object?> get props =>
+      [id, name, role, currency, receiptHeaderUrl, ownerName];
 }

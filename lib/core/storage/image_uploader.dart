@@ -26,15 +26,30 @@ class ImageUploader {
         _ => 'image/jpeg',
       };
 
+  /// Upload a shop-level image (e.g. receipt header, logo). Stored under
+  /// `<shopId>/<kind>/<uuid>.<ext>` so the first path segment scopes RLS.
+  Future<String> uploadShopImage({
+    required String shopId,
+    required String kind, // 'header' | 'logo'
+    required Uint8List bytes,
+    String fileExt = 'jpg',
+  }) async {
+    return _upload('$shopId/$kind', bytes, fileExt);
+  }
+
   Future<String> uploadProductImage({
     required String shopId,
     required String productId,
     required Uint8List bytes,
     String fileExt = 'jpg',
   }) async {
+    return _upload('$shopId/$productId', bytes, fileExt);
+  }
+
+  Future<String> _upload(String folder, Uint8List bytes, String fileExt) async {
     try {
       final ext = fileExt.isEmpty ? 'jpg' : fileExt.toLowerCase();
-      final path = '$shopId/$productId/${_uuid.v4()}.$ext';
+      final path = '$folder/${_uuid.v4()}.$ext';
       await _client.storage.from(AppConstants.bucketProductImages).uploadBinary(
             path,
             bytes,

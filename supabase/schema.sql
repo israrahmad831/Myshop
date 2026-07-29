@@ -64,6 +64,8 @@ create table if not exists public.shops (
   logo_url       text,
   currency       text not null default 'PKR',
   receipt_footer text,
+  receipt_header_url text,          -- banner image shown atop printed receipts
+  owner_name     text,              -- shown on the receipt stamp
   created_at     timestamptz not null default now(),
   updated_at     timestamptz not null default now()
 );
