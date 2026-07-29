@@ -8,6 +8,7 @@ class Customer extends Equatable {
     this.phone,
     this.address,
     this.notes,
+    this.imageUrl,
     this.updatedAt,
   });
 
@@ -17,6 +18,7 @@ class Customer extends Equatable {
   final String? phone;
   final String? address;
   final String? notes;
+  final String? imageUrl;
   final DateTime? updatedAt;
 
   factory Customer.fromJson(Map<String, dynamic> j) => Customer(
@@ -26,6 +28,7 @@ class Customer extends Equatable {
         phone: j['phone'] as String?,
         address: j['address'] as String?,
         notes: j['notes'] as String?,
+        imageUrl: j['image_url'] as String?,
         updatedAt: j['updated_at'] == null
             ? null
             : DateTime.parse(j['updated_at'] as String),
@@ -37,6 +40,7 @@ class Customer extends Equatable {
         'phone': phone,
         'address': address,
         'notes': notes,
+        'image_url': imageUrl,
       };
 
   Customer copyWith({
@@ -44,6 +48,7 @@ class Customer extends Equatable {
     String? phone,
     String? address,
     String? notes,
+    String? imageUrl,
   }) =>
       Customer(
         id: id,
@@ -52,9 +57,11 @@ class Customer extends Equatable {
         phone: phone ?? this.phone,
         address: address ?? this.address,
         notes: notes ?? this.notes,
+        imageUrl: imageUrl ?? this.imageUrl,
         updatedAt: updatedAt,
       );
 
   @override
-  List<Object?> get props => [id, name, phone, address, notes, updatedAt];
+  List<Object?> get props =>
+      [id, name, phone, address, notes, imageUrl, updatedAt];
 }

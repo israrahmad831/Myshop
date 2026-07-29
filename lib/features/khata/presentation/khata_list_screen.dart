@@ -9,22 +9,29 @@ import '../../customers/presentation/customer_providers.dart';
 import '../../shops/presentation/shop_providers.dart';
 import 'khata_providers.dart';
 
-/// Khata overview: total receivable/payable + a list of customers with a
-/// running balance. Tapping a customer opens their dedicated khata ledger page.
-class KhataListScreen extends ConsumerWidget {
+/// Khata overview: net position + a searchable list of customers with a
+/// running balance. Tapping a customer opens their dedicated khata ledger.
+class KhataListScreen extends ConsumerStatefulWidget {
   const KhataListScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<KhataListScreen> createState() => _KhataListScreenState();
+}
+
+class _KhataListScreenState extends ConsumerState<KhataListScreen> {
+  String _query = '';
+
+  @override
+  Widget build(BuildContext context) {
     final customersAsync = ref.watch(customersProvider);
     final balances = ref.watch(khataBalancesProvider);
     final totals = ref.watch(khataTotalsProvider);
     final currency = ref.watch(currentShopProvider)?.currency ?? 'PKR';
     final canCreate =
         ref.watch(currentShopProvider)?.canCreateReceipts ?? false;
+    final q = _query.trim().toLowerCase();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Khata')),
       floatingActionButton: canCreate
           ? FloatingActionButton.extended(
               onPressed: () => _openCustomerPicker(context, ref),
@@ -34,28 +41,17 @@ class KhataListScreen extends ConsumerWidget {
           : null,
       body: Column(
         children: [
+          _SummaryHeader(
+            receivable: totals.receivable,
+            payable: totals.payable,
+            currency: currency,
+          ),
           Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _SummaryCard(
-                    label: 'You will get',
-                    amount: Formatters.money(totals.receivable, currency),
-                    color: Colors.green,
-                    icon: Icons.south_west,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _SummaryCard(
-                    label: 'You will give',
-                    amount: Formatters.money(totals.payable, currency),
-                    color: Colors.red,
-                    icon: Icons.north_east,
-                  ),
-                ),
-              ],
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+            child: SearchBar(
+              hintText: 'Search customer…',
+              leading: const Icon(Icons.search),
+              onChanged: (v) => setState(() => _query = v),
             ),
           ),
           Expanded(
@@ -65,40 +61,58 @@ class KhataListScreen extends ConsumerWidget {
               data: (customers) {
                 final withBalance = customers
                     .where((c) => (balances[c.id] ?? 0) != 0)
+                    .where((c) =>
+                        q.isEmpty ||
+                        c.name.toLowerCase().contains(q) ||
+                        (c.phone?.contains(q) ?? false))
                     .toList()
-                  ..sort((a, b) => (balances[b.id]!.abs())
-                      .compareTo(balances[a.id]!.abs()));
+                  ..sort((a, b) =>
+                      balances[b.id]!.abs().compareTo(balances[a.id]!.abs()));
                 if (withBalance.isEmpty) {
-                  return const EmptyState(
+                  return EmptyState(
                     icon: Icons.account_balance_wallet_outlined,
-                    title: 'No khata yet',
-                    subtitle:
-                        'Open a customer and add a udhaar or payment entry.',
+                    title: q.isEmpty ? 'No khata yet' : 'No matches',
+                    subtitle: q.isEmpty
+                        ? 'Tap "Open khata" to record a udhaar or payment.'
+                        : null,
                   );
                 }
                 return ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
                   itemCount: withBalance.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 8),
                   itemBuilder: (_, i) {
                     final c = withBalance[i];
                     final bal = balances[c.id] ?? 0;
                     final owes = bal > 0;
+                    final color = owes ? Colors.green : Colors.red;
                     return Card(
                       child: ListTile(
-                        onTap: () =>
-                            context.push('/khata/customer/${c.id}'),
+                        onTap: () => context.push('/khata/customer/${c.id}'),
                         leading: CircleAvatar(
-                          child: Text(c.name.characters.first.toUpperCase()),
+                          backgroundImage: c.imageUrl != null
+                              ? NetworkImage(c.imageUrl!)
+                              : null,
+                          child: c.imageUrl == null
+                              ? Text(c.name.characters.first.toUpperCase())
+                              : null,
                         ),
-                        title: Text(c.name),
-                        subtitle:
-                            Text(owes ? 'Owes you' : 'You owe'),
-                        trailing: Text(
-                          Formatters.money(bal.abs(), currency),
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: owes ? Colors.green : Colors.red,
+                        title: Text(c.name,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w600)),
+                        subtitle: Text(owes ? 'Owes you' : 'You owe',
+                            style: TextStyle(color: color, fontSize: 12)),
+                        trailing: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            Formatters.money(bal.abs(), currency),
+                            style: TextStyle(
+                                color: color, fontWeight: FontWeight.bold),
                           ),
                         ),
                       ),
@@ -173,8 +187,13 @@ class KhataListScreen extends ConsumerWidget {
                         final c = filtered[i];
                         return ListTile(
                           leading: CircleAvatar(
-                              child: Text(
-                                  c.name.characters.first.toUpperCase())),
+                            backgroundImage: c.imageUrl != null
+                                ? NetworkImage(c.imageUrl!)
+                                : null,
+                            child: c.imageUrl == null
+                                ? Text(c.name.characters.first.toUpperCase())
+                                : null,
+                          ),
                           title: Text(c.name),
                           subtitle: c.phone != null ? Text(c.phone!) : null,
                           onTap: () {
@@ -195,39 +214,80 @@ class KhataListScreen extends ConsumerWidget {
   }
 }
 
-class _SummaryCard extends StatelessWidget {
-  const _SummaryCard({
-    required this.label,
-    required this.amount,
-    required this.color,
-    required this.icon,
+/// Combined "you will get / you will give" summary banner.
+class _SummaryHeader extends StatelessWidget {
+  const _SummaryHeader({
+    required this.receivable,
+    required this.payable,
+    required this.currency,
   });
-  final String label;
-  final String amount;
-  final Color color;
-  final IconData icon;
+  final num receivable;
+  final num payable;
+  final String currency;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: color),
-            const SizedBox(height: 8),
-            Text(label,
-                style: TextStyle(
-                    color: Theme.of(context).colorScheme.outline,
-                    fontSize: 12)),
-            const SizedBox(height: 2),
-            Text(amount,
-                style: TextStyle(
-                    fontWeight: FontWeight.bold, fontSize: 18, color: color)),
-          ],
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: IntrinsicHeight(
+            child: Row(
+              children: [
+                Expanded(
+                  child: _Half(
+                    icon: Icons.south_west,
+                    label: 'You will get',
+                    amount: Formatters.money(receivable, currency),
+                    color: Colors.green,
+                  ),
+                ),
+                const VerticalDivider(width: 1),
+                Expanded(
+                  child: _Half(
+                    icon: Icons.north_east,
+                    label: 'You will give',
+                    amount: Formatters.money(payable, currency),
+                    color: Colors.red,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
+    );
+  }
+}
+
+class _Half extends StatelessWidget {
+  const _Half({
+    required this.icon,
+    required this.label,
+    required this.amount,
+    required this.color,
+  });
+  final IconData icon;
+  final String label;
+  final String amount;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: color, size: 20),
+        const SizedBox(height: 6),
+        Text(label,
+            style: TextStyle(
+                color: Theme.of(context).colorScheme.outline, fontSize: 12)),
+        const SizedBox(height: 2),
+        Text(amount,
+            style: TextStyle(
+                fontWeight: FontWeight.bold, fontSize: 18, color: color)),
+      ],
     );
   }
 }

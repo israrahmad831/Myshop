@@ -34,23 +34,12 @@ class ReceiptPdfService {
         build: (context) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.stretch,
           children: [
-            // Header banner image (top of receipt)
+            // Full-width header banner image (top of receipt). No shop text
+            // header — the uploaded image carries the shop's branding.
             if (header != null) ...[
-              pw.Center(
-                child: pw.Image(header, height: 70, fit: pw.BoxFit.contain),
-              ),
-              pw.SizedBox(height: 8),
+              pw.Image(header, fit: pw.BoxFit.fitWidth),
+              pw.SizedBox(height: 6),
             ],
-
-            // Header
-            pw.Text(shop.name,
-                style: const pw.TextStyle(
-                    fontSize: 20, fontWeight: pw.FontWeight.bold)),
-            if (shop.address != null)
-              pw.Text(shop.address!, style: const pw.TextStyle(fontSize: 10)),
-            if (shop.phone != null)
-              pw.Text('Ph: ${shop.phone!}',
-                  style: const pw.TextStyle(fontSize: 10)),
             pw.Divider(),
 
             // Meta
@@ -137,38 +126,43 @@ class ReceiptPdfService {
     );
   }
 
-  /// A bordered "stamp" box with the shop's identity, printed on each receipt.
+  /// A clean, rounded shop stamp printed at the bottom-right of each receipt.
   pw.Widget _stamp(Shop shop) {
-    final lines = <pw.Widget>[
-      pw.Text(shop.name,
-          style: const pw.TextStyle(
-              fontSize: 11, fontWeight: pw.FontWeight.bold)),
-      if (shop.ownerName != null && shop.ownerName!.trim().isNotEmpty)
-        pw.Text('Owner: ${shop.ownerName}',
-            style: const pw.TextStyle(fontSize: 9)),
-      if (shop.phone != null && shop.phone!.trim().isNotEmpty)
-        pw.Text('Ph: ${shop.phone}', style: const pw.TextStyle(fontSize: 9)),
-      if (shop.address != null && shop.address!.trim().isNotEmpty)
-        pw.Text(shop.address!, style: const pw.TextStyle(fontSize: 9)),
-    ];
+    const muted = PdfColors.blueGrey600;
     return pw.Container(
-      padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      width: 190,
+      padding: const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: pw.BoxDecoration(
-        border: pw.Border.all(color: PdfColors.blue800, width: 1.5),
-        borderRadius: pw.BorderRadius.circular(6),
+        border: pw.Border.all(color: PdfColors.blueGrey300),
+        borderRadius: pw.BorderRadius.circular(10),
       ),
       child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        crossAxisAlignment: pw.CrossAxisAlignment.center,
         mainAxisSize: pw.MainAxisSize.min,
         children: [
-          pw.Text('SHOP STAMP',
-              style: const pw.TextStyle(
-                  fontSize: 7,
-                  color: PdfColors.blue800,
+          pw.Text(shop.name,
+              textAlign: pw.TextAlign.center,
+              style: pw.TextStyle(
+                  fontSize: 12,
                   fontWeight: pw.FontWeight.bold,
-                  letterSpacing: 1)),
-          pw.SizedBox(height: 2),
-          ...lines,
+                  color: PdfColors.blueGrey800)),
+          if (shop.ownerName != null && shop.ownerName!.trim().isNotEmpty)
+            pw.Text(shop.ownerName!,
+                style: const pw.TextStyle(fontSize: 9, color: muted)),
+          pw.SizedBox(height: 4),
+          pw.Container(
+            height: 0.5,
+            width: 120,
+            color: PdfColors.blueGrey200,
+          ),
+          pw.SizedBox(height: 4),
+          if (shop.phone != null && shop.phone!.trim().isNotEmpty)
+            pw.Text(shop.phone!,
+                style: const pw.TextStyle(fontSize: 8.5, color: muted)),
+          if (shop.address != null && shop.address!.trim().isNotEmpty)
+            pw.Text(shop.address!,
+                textAlign: pw.TextAlign.center,
+                style: const pw.TextStyle(fontSize: 8, color: muted)),
         ],
       ),
     );

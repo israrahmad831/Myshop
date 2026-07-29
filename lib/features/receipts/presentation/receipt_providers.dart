@@ -12,17 +12,47 @@ final receiptsProvider = FutureProvider.autoDispose<List<Receipt>>((ref) async {
 
 final receiptSearchProvider = StateProvider.autoDispose<String>((ref) => '');
 
+/// Date-range filter for the receipts list.
+enum ReceiptRange {
+  all('All'),
+  today('Today'),
+  week('7 days'),
+  month('This month');
+
+  const ReceiptRange(this.label);
+  final String label;
+
+  bool matches(DateTime d) {
+    final now = DateTime.now();
+    switch (this) {
+      case ReceiptRange.all:
+        return true;
+      case ReceiptRange.today:
+        return d.year == now.year && d.month == now.month && d.day == now.day;
+      case ReceiptRange.week:
+        return d.isAfter(now.subtract(const Duration(days: 7)));
+      case ReceiptRange.month:
+        return d.year == now.year && d.month == now.month;
+    }
+  }
+}
+
+final receiptRangeProvider =
+    StateProvider.autoDispose<ReceiptRange>((ref) => ReceiptRange.all);
+
 final filteredReceiptsProvider =
     Provider.autoDispose<AsyncValue<List<Receipt>>>((ref) {
   final q = ref.watch(receiptSearchProvider).trim().toLowerCase();
+  final range = ref.watch(receiptRangeProvider);
   return ref.watch(receiptsProvider).whenData((list) {
-    if (q.isEmpty) return list;
-    return list
-        .where((r) =>
-            r.receiptNumber.toString().contains(q) ||
-            (r.customerName?.toLowerCase().contains(q) ?? false) ||
-            (r.customerPhone?.contains(q) ?? false))
-        .toList();
+    return list.where((r) {
+      final matchesRange = range.matches(r.date);
+      final matchesQuery = q.isEmpty ||
+          r.receiptNumber.toString().contains(q) ||
+          (r.customerName?.toLowerCase().contains(q) ?? false) ||
+          (r.customerPhone?.contains(q) ?? false);
+      return matchesRange && matchesQuery;
+    }).toList();
   });
 });
 

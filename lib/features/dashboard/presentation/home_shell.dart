@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/network/connectivity.dart';
 import '../../customers/presentation/customers_list_screen.dart';
 import '../../khata/presentation/khata_list_screen.dart';
 import '../../products/presentation/products_list_screen.dart';
 import '../../receipts/presentation/receipts_list_screen.dart';
+import '../../shops/presentation/shop_providers.dart';
 import 'dashboard_screen.dart';
 
-/// The main tabbed container shown once a shop is active.
+/// The main tabbed container shown once a shop is active. Owns the single
+/// shared top app bar (search / reports / switch-shop / settings) so those
+/// actions appear on every tab.
 class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key, this.initialTab = 0});
   final int initialTab;
@@ -27,6 +31,8 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     CustomersListScreen(),
     KhataListScreen(),
   ];
+
+  static const _titles = ['Home', 'Products', 'Receipts', 'Customers', 'Khata'];
 
   static const _destinations = <NavigationDestination>[
     NavigationDestination(
@@ -54,7 +60,77 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   @override
   Widget build(BuildContext context) {
     final online = ref.watch(isOnlineProvider);
+    final shop = ref.watch(currentShopProvider);
+
     return Scaffold(
+      appBar: AppBar(
+        titleSpacing: 16,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(_titles[_index],
+                style: const TextStyle(
+                    fontSize: 18, fontWeight: FontWeight.w600)),
+            if (shop != null)
+              Text(shop.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.outline)),
+          ],
+        ),
+        actions: [
+          IconButton(
+            tooltip: 'Search',
+            icon: const Icon(Icons.search),
+            onPressed: () => context.push('/search'),
+          ),
+          IconButton(
+            tooltip: 'Reports',
+            icon: const Icon(Icons.bar_chart),
+            onPressed: () => context.push('/reports'),
+          ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (v) async {
+              switch (v) {
+                case 'switch':
+                  await ref.read(currentShopIdProvider.notifier).select(null);
+                  if (context.mounted) context.go('/shops');
+                case 'members':
+                  if (context.mounted) context.push('/members');
+                case 'settings':
+                  if (context.mounted) context.push('/settings');
+              }
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(
+                value: 'switch',
+                child: ListTile(
+                    leading: Icon(Icons.swap_horiz),
+                    title: Text('Switch shop'),
+                    contentPadding: EdgeInsets.zero),
+              ),
+              PopupMenuItem(
+                value: 'members',
+                child: ListTile(
+                    leading: Icon(Icons.people_outline),
+                    title: Text('Members'),
+                    contentPadding: EdgeInsets.zero),
+              ),
+              PopupMenuItem(
+                value: 'settings',
+                child: ListTile(
+                    leading: Icon(Icons.settings_outlined),
+                    title: Text('Settings'),
+                    contentPadding: EdgeInsets.zero),
+              ),
+            ],
+          ),
+        ],
+      ),
       body: Column(
         children: [
           if (!online) const _OfflineBanner(),

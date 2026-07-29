@@ -138,6 +138,7 @@ create table if not exists public.customers (
   phone      text,
   address    text,
   notes      text,
+  image_url  text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

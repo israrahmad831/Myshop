@@ -46,6 +46,15 @@ class ImageUploader {
     return _upload('$shopId/$productId', bytes, fileExt);
   }
 
+  Future<String> uploadCustomerImage({
+    required String shopId,
+    required String customerId,
+    required Uint8List bytes,
+    String fileExt = 'jpg',
+  }) async {
+    return _upload('$shopId/customer-$customerId', bytes, fileExt);
+  }
+
   Future<String> _upload(String folder, Uint8List bytes, String fileExt) async {
     try {
       final ext = fileExt.isEmpty ? 'jpg' : fileExt.toLowerCase();

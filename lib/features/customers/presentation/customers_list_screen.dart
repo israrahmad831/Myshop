@@ -21,7 +21,6 @@ class CustomersListScreen extends ConsumerWidget {
         ref.watch(currentShopProvider)?.canCreateReceipts ?? false;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Customers')),
       floatingActionButton: canCreate
           ? FloatingActionButton.extended(
               onPressed: () => context.push('/customers/new'),
@@ -65,8 +64,12 @@ class CustomersListScreen extends ConsumerWidget {
                         child: ListTile(
                           onTap: () => context.push('/customers/${c.id}'),
                           leading: CircleAvatar(
-                            child:
-                                Text(c.name.characters.first.toUpperCase()),
+                            backgroundImage: c.imageUrl != null
+                                ? NetworkImage(c.imageUrl!)
+                                : null,
+                            child: c.imageUrl == null
+                                ? Text(c.name.characters.first.toUpperCase())
+                                : null,
                           ),
                           title: Text(c.name),
                           subtitle: c.phone != null ? Text(c.phone!) : null,

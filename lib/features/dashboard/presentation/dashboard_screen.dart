@@ -27,35 +27,8 @@ class DashboardScreen extends ConsumerWidget {
     final todaysSales =
         todays.fold<num>(0, (s, r) => s + r.total);
 
+    // No app bar here — HomeShell provides the shared top header.
     return Scaffold(
-      appBar: AppBar(
-        title: Text(shop?.name ?? 'Dashboard'),
-        actions: [
-          IconButton(
-            tooltip: 'Search',
-            icon: const Icon(Icons.search),
-            onPressed: () => context.push('/search'),
-          ),
-          IconButton(
-            tooltip: 'Reports',
-            icon: const Icon(Icons.bar_chart),
-            onPressed: () => context.push('/reports'),
-          ),
-          IconButton(
-            tooltip: 'Switch shop',
-            icon: const Icon(Icons.swap_horiz),
-            onPressed: () async {
-              await ref.read(currentShopIdProvider.notifier).select(null);
-              if (context.mounted) context.go('/shops');
-            },
-          ),
-          IconButton(
-            tooltip: 'Settings',
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () => context.push('/settings'),
-          ),
-        ],
-      ),
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(receiptsProvider);

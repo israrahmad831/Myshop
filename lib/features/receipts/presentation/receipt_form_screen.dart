@@ -172,18 +172,6 @@ class _ReceiptFormScreenState extends ConsumerState<ReceiptFormScreen> {
                     .suggest(shopId, query),
           ),
           const SizedBox(height: 8),
-          // Add a fully manual/custom line the user fills in themselves.
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: () => setState(() {
-                _items.add(ReceiptItem(id: _uuid.v4(), productName: ''));
-              }),
-              icon: const Icon(Icons.playlist_add),
-              label: const Text('Add custom item'),
-            ),
-          ),
-          const SizedBox(height: 8),
 
           // --- Line items -----------------------------------------------
           if (_items.isEmpty)
@@ -200,6 +188,18 @@ class _ReceiptFormScreenState extends ConsumerState<ReceiptFormScreen> {
                       setState(() => _items[e.key] = updated),
                   onRemove: () => setState(() => _items.removeAt(e.key)),
                 )),
+
+          // Add a fully manual/custom line beneath the items — easy to tap.
+          const SizedBox(height: 4),
+          OutlinedButton.icon(
+            onPressed: () => setState(() {
+              _items.add(ReceiptItem(id: _uuid.v4(), productName: ''));
+            }),
+            icon: const Icon(Icons.playlist_add),
+            label: const Text('Add custom item'),
+            style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(46)),
+          ),
 
           const SizedBox(height: 16),
           // --- Discount + note ------------------------------------------

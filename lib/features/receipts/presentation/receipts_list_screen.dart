@@ -14,12 +14,12 @@ class ReceiptsListScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final filtered = ref.watch(filteredReceiptsProvider);
+    final range = ref.watch(receiptRangeProvider);
     final currency = ref.watch(currentShopProvider)?.currency ?? 'PKR';
     final canCreate =
         ref.watch(currentShopProvider)?.canCreateReceipts ?? false;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Receipts')),
       floatingActionButton: canCreate
           ? FloatingActionButton.extended(
               onPressed: () => context.push('/receipts/new'),
@@ -37,6 +37,49 @@ class ReceiptsListScreen extends ConsumerWidget {
               onChanged: (v) =>
                   ref.read(receiptSearchProvider.notifier).state = v,
             ),
+          ),
+          // Date-range filter chips.
+          SizedBox(
+            height: 44,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              children: [
+                for (final r in ReceiptRange.values)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: FilterChip(
+                      label: Text(r.label),
+                      selected: range == r,
+                      onSelected: (_) =>
+                          ref.read(receiptRangeProvider.notifier).state = r,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          // Total for the current filter.
+          filtered.maybeWhen(
+            data: (receipts) => receipts.isEmpty
+                ? const SizedBox.shrink()
+                : Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('${receipts.length} receipts',
+                            style: TextStyle(
+                                color: Theme.of(context).colorScheme.outline)),
+                        Text(
+                          Formatters.money(
+                              receipts.fold<num>(0, (s, r) => s + r.total),
+                              currency),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ),
+            orElse: () => const SizedBox.shrink(),
           ),
           Expanded(
             child: AsyncView<List<Receipt>>(

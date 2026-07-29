@@ -56,6 +56,17 @@ class CustomerDetailScreen extends ConsumerWidget {
           : null,
       body: Column(
         children: [
+          const SizedBox(height: 12),
+          CircleAvatar(
+            radius: 34,
+            backgroundImage: customer.imageUrl != null
+                ? NetworkImage(customer.imageUrl!)
+                : null,
+            child: customer.imageUrl == null
+                ? Text(customer.name.characters.first.toUpperCase(),
+                    style: const TextStyle(fontSize: 24))
+                : null,
+          ),
           _BalanceHeader(balance: balance, currency: currency),
           if (customer.phone != null || customer.address != null)
             Padding(

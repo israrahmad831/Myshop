@@ -22,15 +22,6 @@ class ProductsListScreen extends ConsumerWidget {
     final canManage = shop?.canManage ?? false;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Products'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () => ref.invalidate(productsProvider),
-          ),
-        ],
-      ),
       floatingActionButton: canManage
           ? FloatingActionButton.extended(
               onPressed: () => context.push('/products/new'),
@@ -42,21 +33,56 @@ class ProductsListScreen extends ConsumerWidget {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: SearchBar(
-              hintText: 'Search products…',
-              leading: const Icon(Icons.search),
-              onChanged: (v) => ref
-                  .read(productFilterProvider.notifier)
-                  .update((s) => s.copyWith(query: v)),
+            child: Row(
+              children: [
+                Expanded(
+                  child: SearchBar(
+                    hintText: 'Search products…',
+                    leading: const Icon(Icons.search),
+                    onChanged: (v) => ref
+                        .read(productFilterProvider.notifier)
+                        .update((s) => s.copyWith(query: v)),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                PopupMenuButton<ProductSort>(
+                  icon: const Icon(Icons.sort),
+                  tooltip: 'Sort',
+                  initialValue: filter.sort,
+                  onSelected: (s) => ref
+                      .read(productFilterProvider.notifier)
+                      .update((f) => f.copyWith(sort: s)),
+                  itemBuilder: (_) => [
+                    for (final s in ProductSort.values)
+                      PopupMenuItem(value: s, child: Text('Sort: ${s.label}')),
+                  ],
+                ),
+              ],
             ),
           ),
-          if (categories.isNotEmpty)
-            SizedBox(
-              height: 44,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                children: [
+          // Low-stock toggle + category chips.
+          SizedBox(
+            height: 44,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: FilterChip(
+                    avatar: Icon(Icons.warning_amber_rounded,
+                        size: 18,
+                        color: filter.lowStockOnly
+                            ? Theme.of(context).colorScheme.error
+                            : null),
+                    label: const Text('Low stock'),
+                    selected: filter.lowStockOnly,
+                    onSelected: (v) => ref
+                        .read(productFilterProvider.notifier)
+                        .update((s) => s.copyWith(lowStockOnly: v)),
+                  ),
+                ),
+                if (categories.isNotEmpty) ...[
                   Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: FilterChip(
@@ -79,8 +105,9 @@ class ProductsListScreen extends ConsumerWidget {
                       ),
                     ),
                 ],
-              ),
+              ],
             ),
+          ),
           Expanded(
             child: AsyncView<List<Product>>(
               value: filtered,

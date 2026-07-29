@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/constants/app_constants.dart';
 import '../../shops/presentation/shop_providers.dart';
 import '../data/products_repository.dart';
 import '../domain/product.dart';
@@ -11,37 +12,77 @@ final productsProvider = FutureProvider.autoDispose<List<Product>>((ref) async {
   return ref.watch(productsRepositoryProvider).list(shopId);
 });
 
-/// UI filter state for the product list (search text + category).
+enum ProductSort {
+  name('Name'),
+  priceHigh('Price high'),
+  priceLow('Price low'),
+  stockLow('Low stock');
+
+  const ProductSort(this.label);
+  final String label;
+}
+
+/// UI filter state for the product list.
 class ProductFilter {
-  const ProductFilter({this.query = '', this.category});
+  const ProductFilter({
+    this.query = '',
+    this.category,
+    this.lowStockOnly = false,
+    this.sort = ProductSort.name,
+  });
   final String query;
   final String? category;
+  final bool lowStockOnly;
+  final ProductSort sort;
 
-  ProductFilter copyWith({String? query, String? category, bool clearCat = false}) =>
+  ProductFilter copyWith({
+    String? query,
+    String? category,
+    bool clearCat = false,
+    bool? lowStockOnly,
+    ProductSort? sort,
+  }) =>
       ProductFilter(
         query: query ?? this.query,
         category: clearCat ? null : (category ?? this.category),
+        lowStockOnly: lowStockOnly ?? this.lowStockOnly,
+        sort: sort ?? this.sort,
       );
 }
 
 final productFilterProvider =
     StateProvider.autoDispose<ProductFilter>((ref) => const ProductFilter());
 
-/// Products after applying the current search/category filter.
+/// Products after applying the current search/category/stock filter + sort.
 final filteredProductsProvider =
     Provider.autoDispose<AsyncValue<List<Product>>>((ref) {
   final filter = ref.watch(productFilterProvider);
   return ref.watch(productsProvider).whenData((products) {
     final q = filter.query.trim().toLowerCase();
-    return products.where((p) {
+    final list = products.where((p) {
       final matchesQuery = q.isEmpty ||
           p.name.toLowerCase().contains(q) ||
           (p.brand?.toLowerCase().contains(q) ?? false) ||
           (p.barcode?.toLowerCase().contains(q) ?? false);
       final matchesCat =
           filter.category == null || p.category == filter.category;
-      return matchesQuery && matchesCat;
+      final matchesStock = !filter.lowStockOnly ||
+          p.currentStock <= AppConstants.lowStockThreshold;
+      return matchesQuery && matchesCat && matchesStock;
     }).toList();
+
+    switch (filter.sort) {
+      case ProductSort.name:
+        list.sort(
+            (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      case ProductSort.priceHigh:
+        list.sort((a, b) => b.sellingPrice.compareTo(a.sellingPrice));
+      case ProductSort.priceLow:
+        list.sort((a, b) => a.sellingPrice.compareTo(b.sellingPrice));
+      case ProductSort.stockLow:
+        list.sort((a, b) => a.currentStock.compareTo(b.currentStock));
+    }
+    return list;
   });
 });
 
