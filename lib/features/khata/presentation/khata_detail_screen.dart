@@ -116,41 +116,68 @@ class KhataDetailScreen extends ConsumerWidget {
                     title: 'No transactions',
                     subtitle: 'Tap "Add entry" to record udhaar or a payment.',
                   )
-                : ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
-                    itemCount: ledger.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
-                    itemBuilder: (_, i) => _LedgerTile(
-                      txn: ledger[i],
-                      currency: currency,
-                      canManage: canManage,
-                      onEdit: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => KhataEntryScreen(
-                            customerId: customerId,
-                            existing: ledger[i],
-                          ),
-                        ),
-                      ),
-                      onDelete: () async {
-                        final ok = await confirmDialog(context,
-                            title: 'Delete entry?',
-                            message: 'This transaction will be removed.',
-                            confirmLabel: 'Delete',
-                            destructive: true);
-                        if (!ok) return;
-                        await ref
-                            .read(khataRepositoryProvider)
-                            .delete(ledger[i].id);
-                        ref.invalidate(khataTransactionsProvider);
-                      },
-                    ),
-                  ),
+                : Builder(builder: (context) {
+                    final groups = <String, List<KhataTransaction>>{};
+                    for (final txn in ledger) {
+                      groups.putIfAbsent(Formatters.month(txn.date), () => [])
+                          .add(txn);
+                    }
+                    return ListView(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+                      children: [
+                        for (final group in groups.entries) ...[
+                          _MonthHeading(label: group.key),
+                          for (final txn in group.value)
+                            _LedgerTile(
+                              txn: txn,
+                              currency: currency,
+                              canManage: canManage,
+                              onEdit: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => KhataEntryScreen(
+                                    customerId: customerId,
+                                    existing: txn,
+                                  ),
+                                ),
+                              ),
+                              onDelete: () async {
+                                final ok = await confirmDialog(context,
+                                    title: 'Delete entry?',
+                                    message:
+                                        'This transaction will be removed.',
+                                    confirmLabel: 'Delete',
+                                    destructive: true);
+                                if (!ok) return;
+                                await ref
+                                    .read(khataRepositoryProvider)
+                                    .delete(txn.id);
+                                ref.invalidate(khataTransactionsProvider);
+                              },
+                            ),
+                        ],
+                      ],
+                    );
+                  }),
           ),
         ],
       ),
     );
   }
+}
+
+class _MonthHeading extends StatelessWidget {
+  const _MonthHeading({required this.label});
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(4, 16, 4, 8),
+        child: Text(label,
+            style: Theme.of(context)
+                .textTheme
+                .titleSmall
+                ?.copyWith(fontWeight: FontWeight.bold)),
+      );
 }
 
 class _BalanceHeader extends StatelessWidget {

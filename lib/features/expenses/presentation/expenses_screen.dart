@@ -26,6 +26,15 @@ class ExpensesScreen extends ConsumerWidget {
     if (saved == true) ref.invalidate(expensesProvider);
   }
 
+  Future<void> _editExpense(
+      BuildContext context, WidgetRef ref, Expense expense) async {
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (_) => _ExpenseDialog(existing: expense),
+    );
+    if (saved == true) ref.invalidate(expensesProvider);
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final expenses = ref.watch(expensesProvider);
@@ -54,71 +63,82 @@ class ExpensesScreen extends ConsumerWidget {
               subtitle: canCreate ? 'Record your first shop expense.' : null,
             );
           }
+          final groups = <String, List<Expense>>{};
+          for (final expense in items) {
+            groups
+                .putIfAbsent(Formatters.month(expense.date), () => [])
+                .add(expense);
+          }
           return RefreshIndicator(
             onRefresh: () async => ref.invalidate(expensesProvider),
-            child: ListView.separated(
+            child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
-              itemCount: items.length + 1,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
-              itemBuilder: (_, index) {
-                if (index == 0) {
-                  return Card(
-                    child: ListTile(
-                      leading:
-                          const Icon(Icons.account_balance_wallet_outlined),
-                      title: const Text('Total expenses'),
-                      trailing: Text(Formatters.money(total, currency),
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 18)),
-                    ),
-                  );
-                }
-                final expense = items[index - 1];
-                return Card(
+              children: [
+                Card(
                   child: ListTile(
-                    leading: CircleAvatar(
-                      child: Icon(_iconFor(expense.category)),
-                    ),
-                    title: Text(
-                      expense.category?.trim().isNotEmpty == true
-                          ? expense.category!
-                          : 'Shop expense',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    subtitle: Text([
-                      Formatters.date(expense.date),
-                      if (expense.note?.trim().isNotEmpty == true)
-                        expense.note!,
-                    ].join(' · ')),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(Formatters.money(expense.amount, currency),
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.red)),
-                        if (shop?.canManage == true)
-                          IconButton(
-                            tooltip: 'Delete expense',
-                            icon: const Icon(Icons.delete_outline),
-                            onPressed: () async {
-                              final ok = await confirmDialog(context,
-                                  title: 'Delete expense?',
-                                  message: 'This cannot be undone.',
-                                  confirmLabel: 'Delete',
-                                  destructive: true);
-                              if (!ok) return;
-                              await ref
-                                  .read(expensesRepositoryProvider)
-                                  .delete(expense.id);
-                              ref.invalidate(expensesProvider);
-                            },
-                          ),
-                      ],
-                    ),
+                    leading: const Icon(Icons.account_balance_wallet_outlined),
+                    title: const Text('Total expenses'),
+                    trailing: Text(Formatters.money(total, currency),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 18)),
                   ),
-                );
-              },
+                ),
+                for (final group in groups.entries) ...[
+                  _MonthHeading(label: group.key),
+                  for (final expense in group.value)
+                    Card(
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          child: Icon(_iconFor(expense.category)),
+                        ),
+                        title: Text(
+                          expense.category?.trim().isNotEmpty == true
+                              ? expense.category!
+                              : 'Shop expense',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        subtitle: Text([
+                          Formatters.date(expense.date),
+                          if (expense.note?.trim().isNotEmpty == true)
+                            expense.note!,
+                        ].join(' · ')),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(Formatters.money(expense.amount, currency),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.red)),
+                            if (shop?.canManage == true)
+                              IconButton(
+                                tooltip: 'Edit expense',
+                                icon: const Icon(Icons.edit_outlined),
+                                onPressed: () =>
+                                    _editExpense(context, ref, expense),
+                              ),
+                            if (shop?.canManage == true)
+                              IconButton(
+                                tooltip: 'Delete expense',
+                                icon: const Icon(Icons.delete_outline),
+                                onPressed: () async {
+                                  final ok = await confirmDialog(context,
+                                      title: 'Delete expense?',
+                                      message: 'This cannot be undone.',
+                                      confirmLabel: 'Delete',
+                                      destructive: true);
+                                  if (!ok) return;
+                                  await ref
+                                      .read(expensesRepositoryProvider)
+                                      .delete(expense.id);
+                                  ref.invalidate(expensesProvider);
+                                },
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ],
             ),
           );
         },
@@ -143,8 +163,25 @@ class ExpensesScreen extends ConsumerWidget {
   }
 }
 
+class _MonthHeading extends StatelessWidget {
+  const _MonthHeading({required this.label});
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(4, 20, 4, 8),
+        child: Text(label,
+            style: Theme.of(context)
+                .textTheme
+                .titleSmall
+                ?.copyWith(fontWeight: FontWeight.bold)),
+      );
+}
+
 class _ExpenseDialog extends ConsumerStatefulWidget {
-  const _ExpenseDialog();
+  const _ExpenseDialog({this.existing});
+
+  final Expense? existing;
 
   @override
   ConsumerState<_ExpenseDialog> createState() => _ExpenseDialogState();
@@ -158,6 +195,20 @@ class _ExpenseDialogState extends ConsumerState<_ExpenseDialog> {
   final _note = TextEditingController();
   DateTime _date = DateTime.now();
   bool _saving = false;
+
+  bool get _isEdit => widget.existing != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final existing = widget.existing;
+    if (existing != null) {
+      _amount.text = existing.amount.toString();
+      _category.text = existing.category ?? '';
+      _note.text = existing.note ?? '';
+      _date = existing.date;
+    }
+  }
 
   @override
   void dispose() {
@@ -173,15 +224,19 @@ class _ExpenseDialogState extends ConsumerState<_ExpenseDialog> {
     if (shopId == null) return;
     setState(() => _saving = true);
     try {
-      await ref.read(expensesRepositoryProvider).create(Expense(
-            id: _uuid.v4(),
-            shopId: shopId,
-            amount: num.parse(_amount.text.trim()),
-            date: _date,
-            category:
-                _category.text.trim().isEmpty ? null : _category.text.trim(),
-            note: _note.text.trim().isEmpty ? null : _note.text.trim(),
-          ));
+      final expense = Expense(
+        id: widget.existing?.id ?? _uuid.v4(),
+        shopId: shopId,
+        amount: num.parse(_amount.text.trim()),
+        date: _date,
+        category: _category.text.trim().isEmpty ? null : _category.text.trim(),
+        note: _note.text.trim().isEmpty ? null : _note.text.trim(),
+      );
+      if (_isEdit) {
+        await ref.read(expensesRepositoryProvider).update(expense);
+      } else {
+        await ref.read(expensesRepositoryProvider).create(expense);
+      }
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       if (mounted) showSnack(context, '$e', error: true);
@@ -207,8 +262,8 @@ class _ExpenseDialogState extends ConsumerState<_ExpenseDialog> {
                 children: [
                   Row(
                     children: [
-                      const Expanded(
-                        child: Text('Add expense',
+                      Expanded(
+                        child: Text(_isEdit ? 'Edit expense' : 'Add expense',
                             style: TextStyle(
                                 fontSize: 22, fontWeight: FontWeight.w700)),
                       ),
@@ -287,7 +342,7 @@ class _ExpenseDialogState extends ConsumerState<_ExpenseDialog> {
                                 child:
                                     CircularProgressIndicator(strokeWidth: 2))
                             : const Icon(Icons.save_outlined),
-                        label: const Text('Save expense'),
+                        label: Text(_isEdit ? 'Save changes' : 'Save expense'),
                       ),
                     ],
                   ),

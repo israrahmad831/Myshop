@@ -42,6 +42,11 @@ class ExpensesRepository with OfflineRepository {
     return Expense.fromJson(saved);
   }
 
+  Future<Expense> update(Expense expense) async {
+    final saved = await updateRow(_table, expense.id, expense.toWrite());
+    return Expense.fromJson(saved);
+  }
+
   Future<void> delete(String id) => deleteRow(_table, id);
 }
 
