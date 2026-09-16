@@ -34,6 +34,7 @@ class _KhataListScreenState extends ConsumerState<KhataListScreen> {
     return Scaffold(
       floatingActionButton: canCreate
           ? FloatingActionButton.extended(
+              heroTag: 'khata-fab',
               onPressed: () => _openCustomerPicker(context, ref),
               icon: const Icon(Icons.add),
               label: const Text('Open khata'),
@@ -98,8 +99,8 @@ class _KhataListScreenState extends ConsumerState<KhataListScreen> {
                               : null,
                         ),
                         title: Text(c.name,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w600)),
+                            style:
+                                const TextStyle(fontWeight: FontWeight.w600)),
                         subtitle: Text(owes ? 'Owes you' : 'You owe',
                             style: TextStyle(color: color, fontSize: 12)),
                         trailing: Container(
@@ -177,7 +178,8 @@ class _KhataListScreenState extends ConsumerState<KhataListScreen> {
                       return const EmptyState(
                         icon: Icons.people_outline,
                         title: 'No customers yet',
-                        subtitle: 'Add a customer first from the Customers tab.',
+                        subtitle:
+                            'Add a customer first from the Customers tab.',
                       );
                     }
                     return ListView.builder(

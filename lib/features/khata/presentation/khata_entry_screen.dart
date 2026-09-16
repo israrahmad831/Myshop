@@ -11,9 +11,15 @@ import 'khata_providers.dart';
 
 /// Add or edit a khata transaction for a customer. Pass [existing] to edit.
 class KhataEntryScreen extends ConsumerStatefulWidget {
-  const KhataEntryScreen({super.key, required this.customerId, this.existing});
+  const KhataEntryScreen({
+    super.key,
+    required this.customerId,
+    this.existing,
+    this.initialType = KhataType.udhaarGiven,
+  });
   final String customerId;
   final KhataTransaction? existing;
+  final KhataType initialType;
 
   @override
   ConsumerState<KhataEntryScreen> createState() => _KhataEntryScreenState();
@@ -33,7 +39,7 @@ class _KhataEntryScreenState extends ConsumerState<KhataEntryScreen> {
   void initState() {
     super.initState();
     final e = widget.existing;
-    _type = e?.type ?? KhataType.udhaarGiven;
+    _type = e?.type ?? widget.initialType;
     _date = e?.date ?? DateTime.now();
     if (e != null) {
       _amount.text = e.amount.toString();
@@ -93,25 +99,6 @@ class _KhataEntryScreenState extends ConsumerState<KhataEntryScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('Transaction type',
-                    style: Theme.of(context).textTheme.titleSmall),
-                const SizedBox(height: 8),
-                RadioGroup<KhataType>(
-                  groupValue: _type,
-                  onChanged: (v) => setState(() => _type = v!),
-                  child: Column(
-                    children: [
-                      for (final t in KhataType.values)
-                        RadioListTile<KhataType>(
-                          value: t,
-                          title: Text(t.label),
-                          subtitle: Text(t.hint),
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 8),
                 TextFormField(
                   controller: _amount,
                   keyboardType:

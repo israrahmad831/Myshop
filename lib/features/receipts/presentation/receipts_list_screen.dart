@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -11,6 +12,38 @@ import 'receipt_providers.dart';
 class ReceiptsListScreen extends ConsumerWidget {
   const ReceiptsListScreen({super.key});
 
+  void _showCreateOptions(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.point_of_sale_outlined),
+              title: const Text('Create sale'),
+              subtitle: const Text('Add products and quantities'),
+              onTap: () {
+                Navigator.pop(ctx);
+                context.push('/receipts/new');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Upload photo receipt'),
+              subtitle: const Text('Save a photo of a handwritten receipt'),
+              onTap: () {
+                Navigator.pop(ctx);
+                context.push('/receipts/photo');
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final filtered = ref.watch(filteredReceiptsProvider);
@@ -22,9 +55,10 @@ class ReceiptsListScreen extends ConsumerWidget {
     return Scaffold(
       floatingActionButton: canCreate
           ? FloatingActionButton.extended(
-              onPressed: () => context.push('/receipts/new'),
+              heroTag: 'sales-fab',
+              onPressed: () => _showCreateOptions(context),
               icon: const Icon(Icons.add),
-              label: const Text('New receipt'),
+              label: const Text('New sale'),
             )
           : null,
       body: Column(
@@ -106,17 +140,31 @@ class ReceiptsListScreen extends ConsumerWidget {
                       return Card(
                         child: ListTile(
                           onTap: () => context.push('/receipts/${r.id}'),
-                          leading: CircleAvatar(
-                            child: Text('#${r.receiptNumber}',
-                                style: const TextStyle(fontSize: 11)),
-                          ),
+                          leading: r.isPhoto
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: SizedBox(
+                                    width: 42,
+                                    height: 42,
+                                    child: CachedNetworkImage(
+                                      imageUrl: r.imageUrl!,
+                                      fit: BoxFit.cover,
+                                      errorWidget: (_, __, ___) =>
+                                          const Icon(Icons.image_outlined),
+                                    ),
+                                  ),
+                                )
+                              : CircleAvatar(
+                                  child: Text('#${r.receiptNumber}',
+                                      style: const TextStyle(fontSize: 11)),
+                                ),
                           title: Text(r.customerName ?? 'Walk-in customer'),
-                          subtitle: Text(
-                              '${Formatters.dateTime(r.date)} · ${r.items.length} items'),
+                          subtitle: Text(r.isPhoto
+                              ? '${Formatters.dateTime(r.date)} · Photo'
+                              : '${Formatters.dateTime(r.date)} · ${r.items.length} items'),
                           trailing: Text(
                             Formatters.money(r.total, currency),
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold),
+                            style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),
                       );

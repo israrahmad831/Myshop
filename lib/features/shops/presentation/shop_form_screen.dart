@@ -62,8 +62,8 @@ class _ShopFormScreenState extends ConsumerState<ShopFormScreen> {
   }
 
   Future<void> _pickHeader() async {
-    final xfile = await ImagePicker()
-        .pickImage(source: ImageSource.gallery, maxWidth: 1600, imageQuality: 85);
+    final xfile = await ImagePicker().pickImage(
+        source: ImageSource.gallery, maxWidth: 1600, imageQuality: 85);
     if (xfile == null) return;
     final bytes = await xfile.readAsBytes();
     if (mounted) {
@@ -82,7 +82,8 @@ class _ShopFormScreenState extends ConsumerState<ShopFormScreen> {
     final repo = ref.read(shopsRepositoryProvider);
     try {
       final draft =
-          (widget.existing ?? const Shop(id: '', ownerId: '', name: '')).copyWith(
+          (widget.existing ?? const Shop(id: '', ownerId: '', name: ''))
+              .copyWith(
         name: _name.text.trim(),
         ownerName: _ownerName.text.trim(),
         address: _address.text.trim(),
@@ -90,6 +91,7 @@ class _ShopFormScreenState extends ConsumerState<ShopFormScreen> {
         currency: _currency.text.trim().isEmpty ? 'PKR' : _currency.text.trim(),
         receiptFooter: _footer.text.trim(),
         receiptHeaderUrl: _headerUrl,
+        clearReceiptHeaderUrl: _headerUrl == null,
       );
       var saved =
           _isEdit ? await repo.updateShop(draft) : await repo.createShop(draft);
@@ -259,7 +261,8 @@ class _HeaderPicker extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: scheme.outlineVariant),
               image: bytes != null
-                  ? DecorationImage(image: MemoryImage(bytes!), fit: BoxFit.cover)
+                  ? DecorationImage(
+                      image: MemoryImage(bytes!), fit: BoxFit.cover)
                   : (url != null
                       ? DecorationImage(
                           image: NetworkImage(url!), fit: BoxFit.cover)

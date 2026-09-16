@@ -17,7 +17,11 @@ import 'receipt_providers.dart';
 /// (e.g. typing "be" suggests "Berger …"). Selecting fills name + selling
 /// price; the user may still edit the price.
 class ReceiptFormScreen extends ConsumerStatefulWidget {
-  const ReceiptFormScreen({super.key});
+  const ReceiptFormScreen({super.key, this.receiptId});
+
+  /// When set, the form edits the existing receipt instead of creating one.
+  final String? receiptId;
+
   @override
   ConsumerState<ReceiptFormScreen> createState() => _ReceiptFormScreenState();
 }
@@ -30,6 +34,26 @@ class _ReceiptFormScreenState extends ConsumerState<ReceiptFormScreen> {
   final _note = TextEditingController();
   final List<ReceiptItem> _items = [];
   bool _saving = false;
+  Receipt? _existing;
+
+  bool get _isEdit => widget.receiptId != null;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_isEdit) {
+      _existing =
+          ref.read(receiptsRepositoryProvider).getCached(widget.receiptId!);
+      final r = _existing;
+      if (r != null) {
+        _customerName.text = r.customerName ?? '';
+        _customerPhone.text = r.customerPhone ?? '';
+        _discount.text = r.discount.toString();
+        _note.text = r.note ?? '';
+        _items.addAll(r.items);
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -77,12 +101,13 @@ class _ReceiptFormScreenState extends ConsumerState<ReceiptFormScreen> {
     final shopId = ref.read(currentShopIdProvider);
     if (shopId == null) return;
     setState(() => _saving = true);
+    final repo = ref.read(receiptsRepositoryProvider);
     try {
       final draft = Receipt(
-        id: '',
+        id: _existing?.id ?? '',
         shopId: shopId,
-        receiptNumber: 0,
-        date: DateTime.now(),
+        receiptNumber: _existing?.receiptNumber ?? 0,
+        date: _existing?.date ?? DateTime.now(),
         customerName: _customerName.text.trim().isEmpty
             ? null
             : _customerName.text.trim(),
@@ -94,11 +119,16 @@ class _ReceiptFormScreenState extends ConsumerState<ReceiptFormScreen> {
         items: _items,
       );
       final saved =
-          await ref.read(receiptsRepositoryProvider).create(draft);
+          _isEdit ? await repo.update(draft) : await repo.create(draft);
       ref.invalidate(receiptsProvider);
       if (mounted) {
-        showSnack(context, 'Receipt #${saved.receiptNumber} saved');
-        context.pushReplacement('/receipts/${saved.id}');
+        showSnack(context,
+            _isEdit ? 'Receipt updated' : 'Receipt #${saved.receiptNumber} saved');
+        if (_isEdit) {
+          context.pop();
+        } else {
+          context.pushReplacement('/receipts/${saved.id}');
+        }
       }
     } catch (e) {
       if (mounted) showSnack(context, '$e', error: true);
@@ -116,7 +146,7 @@ class _ReceiptFormScreenState extends ConsumerState<ReceiptFormScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('New receipt'),
+        title: Text(_isEdit ? 'Edit receipt' : 'New receipt'),
         actions: [
           TextButton.icon(
             onPressed: _saving ? null : _save,

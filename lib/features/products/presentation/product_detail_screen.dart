@@ -50,9 +50,7 @@ class ProductDetailScreen extends ConsumerWidget {
                     confirmLabel: 'Delete',
                     destructive: true);
                 if (!ok) return;
-                await ref
-                    .read(productsRepositoryProvider)
-                    .delete(productId);
+                await ref.read(productsRepositoryProvider).delete(productId);
                 ref.invalidate(productsProvider);
                 if (context.mounted) context.pop();
               },
@@ -74,12 +72,10 @@ class ProductDetailScreen extends ConsumerWidget {
               ),
             ),
           const SizedBox(height: 16),
-          Text(product.name,
-              style: Theme.of(context).textTheme.headlineSmall),
+          Text(product.name, style: Theme.of(context).textTheme.headlineSmall),
           if (product.brand != null)
             Text(product.brand!,
-                style: TextStyle(
-                    color: Theme.of(context).colorScheme.outline)),
+                style: TextStyle(color: Theme.of(context).colorScheme.outline)),
           const SizedBox(height: 16),
           Card(
             child: Padding(
@@ -90,7 +86,7 @@ class ProductDetailScreen extends ConsumerWidget {
                       Formatters.money(product.sellingPrice, currency)),
                   _row('Purchase price',
                       Formatters.money(product.purchasePrice, currency)),
-                  _row('Stock (manual)',
+                  _row('Current stock',
                       '${Formatters.qty(product.currentStock)} ${product.unit}'),
                   if (product.category != null)
                     _row('Category', product.category!),
@@ -103,8 +99,7 @@ class ProductDetailScreen extends ConsumerWidget {
           if (product.description != null &&
               product.description!.trim().isNotEmpty) ...[
             const SizedBox(height: 16),
-            Text('Description',
-                style: Theme.of(context).textTheme.titleMedium),
+            Text('Description', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 4),
             Text(product.description!),
           ],

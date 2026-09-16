@@ -32,7 +32,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     KhataListScreen(),
   ];
 
-  static const _titles = ['Home', 'Products', 'Receipts', 'Customers', 'Khata'];
+  static const _titles = ['Home', 'Products', 'Sales', 'Customers', 'Khata'];
 
   static const _destinations = <NavigationDestination>[
     NavigationDestination(
@@ -46,7 +46,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     NavigationDestination(
         icon: Icon(Icons.receipt_long_outlined),
         selectedIcon: Icon(Icons.receipt_long),
-        label: 'Receipts'),
+        label: 'Sales'),
     NavigationDestination(
         icon: Icon(Icons.people_outline),
         selectedIcon: Icon(Icons.people),
@@ -70,8 +70,8 @@ class _HomeShellState extends ConsumerState<HomeShell> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(_titles[_index],
-                style: const TextStyle(
-                    fontSize: 18, fontWeight: FontWeight.w600)),
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
             if (shop != null)
               Text(shop.name,
                   maxLines: 1,
@@ -165,8 +165,8 @@ class _OfflineBanner extends StatelessWidget {
               Icon(Icons.cloud_off, size: 16, color: scheme.onErrorContainer),
               const SizedBox(width: 8),
               Text('Offline — changes will sync when back online',
-                  style: TextStyle(
-                      color: scheme.onErrorContainer, fontSize: 12)),
+                  style:
+                      TextStyle(color: scheme.onErrorContainer, fontSize: 12)),
             ],
           ),
         ),

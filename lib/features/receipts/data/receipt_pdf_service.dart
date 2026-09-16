@@ -1,31 +1,78 @@
 import 'dart:typed_data';
 
+import 'package:http/http.dart' as http;
+import 'package:image/image.dart' as img;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart' show networkImage;
 
 import '../../../core/utils/formatters.dart';
 import '../../shops/domain/shop.dart';
 import '../domain/receipt.dart';
 
 /// Builds a printable/shareable A5 receipt PDF from a [Receipt] + [Shop].
+///
 class ReceiptPdfService {
   const ReceiptPdfService();
+
+  Future<pw.ImageProvider?> _loadImage(String? url) async {
+    if (url == null || url.trim().isEmpty) return null;
+    try {
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode != 200 || response.bodyBytes.isEmpty) return null;
+      final decoded = img.decodeImage(response.bodyBytes);
+      if (decoded == null) return null;
+      final oriented = img.bakeOrientation(decoded);
+      final longest =
+          oriented.width > oriented.height ? oriented.width : oriented.height;
+      final normalized = longest > 1600
+          ? (oriented.width >= oriented.height
+              ? img.copyResize(oriented, width: 1600)
+              : img.copyResize(oriented, height: 1600))
+          : oriented;
+      return pw.MemoryImage(
+          Uint8List.fromList(img.encodeJpg(normalized, quality: 90)));
+    } catch (_) {
+      return null;
+    }
+  }
 
   Future<Uint8List> build(Receipt receipt, Shop shop) async {
     final doc = pw.Document();
     final currency = shop.currency;
 
-    // Fetch the header banner image (if configured). Never fail the receipt
-    // over a missing/broken image.
-    pw.ImageProvider? header;
-    if (shop.receiptHeaderUrl != null &&
-        shop.receiptHeaderUrl!.trim().isNotEmpty) {
-      try {
-        header = await networkImage(shop.receiptHeaderUrl!);
-      } catch (_) {
-        header = null;
-      }
+    // Header banner image (if configured).
+    final header = await _loadImage(shop.receiptHeaderUrl);
+
+    // Photo receipt: just render the uploaded photo (+ label / amount).
+    if (receipt.isPhoto) {
+      final photo = await _loadImage(receipt.imageUrl);
+      doc.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a5,
+          build: (context) => pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+            children: [
+              if (receipt.customerName != null &&
+                  receipt.customerName!.trim().isNotEmpty)
+                pw.Text(receipt.customerName!,
+                    style: const pw.TextStyle(
+                        fontSize: 14, fontWeight: pw.FontWeight.bold)),
+              pw.Text(Formatters.dateTime(receipt.date),
+                  style: const pw.TextStyle(fontSize: 10)),
+              pw.SizedBox(height: 8),
+              if (photo != null)
+                pw.Expanded(child: pw.Image(photo, fit: pw.BoxFit.contain)),
+              if (receipt.total > 0) ...[
+                pw.SizedBox(height: 8),
+                pw.Text('Amount: ${Formatters.money(receipt.total, currency)}',
+                    style: const pw.TextStyle(
+                        fontSize: 13, fontWeight: pw.FontWeight.bold)),
+              ],
+            ],
+          ),
+        ),
+      );
+      return doc.save();
     }
 
     doc.addPage(
@@ -34,10 +81,11 @@ class ReceiptPdfService {
         build: (context) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.stretch,
           children: [
-            // Full-width header banner image (top of receipt). No shop text
-            // header — the uploaded image carries the shop's branding.
+            // Full-width header banner image; the uploaded image is the shop's
+            // branding (no shop text header, no stamp).
             if (header != null) ...[
-              pw.Image(header, fit: pw.BoxFit.fitWidth),
+              pw.Center(
+                  child: pw.Image(header, height: 100, fit: pw.BoxFit.contain)),
               pw.SizedBox(height: 6),
             ],
             pw.Divider(),
@@ -67,9 +115,9 @@ class ReceiptPdfService {
                   const pw.BoxDecoration(color: PdfColors.grey300),
               cellAlignments: {
                 0: pw.Alignment.centerLeft,
-                1: pw.Alignment.centerRight,
-                2: pw.Alignment.centerRight,
-                3: pw.Alignment.centerRight,
+                1: pw.Alignment.center,
+                2: pw.Alignment.center,
+                3: pw.Alignment.center,
               },
               headers: const ['Item', 'Qty', 'Price', 'Total'],
               data: [
@@ -93,14 +141,13 @@ class ReceiptPdfService {
             _totalRow('TOTAL', Formatters.money(receipt.total, currency),
                 bold: true),
 
-            pw.Spacer(),
+            if (receipt.note != null && receipt.note!.trim().isNotEmpty) ...[
+              pw.SizedBox(height: 8),
+              pw.Text('Note: ${receipt.note}',
+                  style: const pw.TextStyle(fontSize: 10)),
+            ],
 
-            // Shop stamp (owner / shop details) aligned to the right.
-            pw.Align(
-              alignment: pw.Alignment.centerRight,
-              child: _stamp(shop),
-            ),
-            pw.SizedBox(height: 8),
+            pw.Spacer(),
 
             if (shop.receiptFooter != null &&
                 shop.receiptFooter!.trim().isNotEmpty)
@@ -123,48 +170,6 @@ class ReceiptPdfService {
     return pw.Row(
       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
       children: [pw.Text(label, style: style), pw.Text(value, style: style)],
-    );
-  }
-
-  /// A clean, rounded shop stamp printed at the bottom-right of each receipt.
-  pw.Widget _stamp(Shop shop) {
-    const muted = PdfColors.blueGrey600;
-    return pw.Container(
-      width: 190,
-      padding: const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: pw.BoxDecoration(
-        border: pw.Border.all(color: PdfColors.blueGrey300),
-        borderRadius: pw.BorderRadius.circular(10),
-      ),
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.center,
-        mainAxisSize: pw.MainAxisSize.min,
-        children: [
-          pw.Text(shop.name,
-              textAlign: pw.TextAlign.center,
-              style: pw.TextStyle(
-                  fontSize: 12,
-                  fontWeight: pw.FontWeight.bold,
-                  color: PdfColors.blueGrey800)),
-          if (shop.ownerName != null && shop.ownerName!.trim().isNotEmpty)
-            pw.Text(shop.ownerName!,
-                style: const pw.TextStyle(fontSize: 9, color: muted)),
-          pw.SizedBox(height: 4),
-          pw.Container(
-            height: 0.5,
-            width: 120,
-            color: PdfColors.blueGrey200,
-          ),
-          pw.SizedBox(height: 4),
-          if (shop.phone != null && shop.phone!.trim().isNotEmpty)
-            pw.Text(shop.phone!,
-                style: const pw.TextStyle(fontSize: 8.5, color: muted)),
-          if (shop.address != null && shop.address!.trim().isNotEmpty)
-            pw.Text(shop.address!,
-                textAlign: pw.TextAlign.center,
-                style: const pw.TextStyle(fontSize: 8, color: muted)),
-        ],
-      ),
     );
   }
 }

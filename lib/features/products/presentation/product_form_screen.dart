@@ -67,8 +67,14 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   @override
   void dispose() {
     for (final c in [
-      _name, _brand, _category, _purchase, _selling, _stock,
-      _barcode, _description,
+      _name,
+      _brand,
+      _category,
+      _purchase,
+      _selling,
+      _stock,
+      _barcode,
+      _description,
     ]) {
       c.dispose();
     }
@@ -115,16 +121,14 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
         shopId: shopId,
         name: _name.text.trim(),
         brand: _brand.text.trim().isEmpty ? null : _brand.text.trim(),
-        category:
-            _category.text.trim().isEmpty ? null : _category.text.trim(),
+        category: _category.text.trim().isEmpty ? null : _category.text.trim(),
         purchasePrice: num.tryParse(_purchase.text.trim()) ?? 0,
         sellingPrice: num.tryParse(_selling.text.trim()) ?? 0,
         currentStock: num.tryParse(_stock.text.trim()) ?? 0,
         unit: _unit,
         barcode: _barcode.text.trim().isEmpty ? null : _barcode.text.trim(),
-        description: _description.text.trim().isEmpty
-            ? null
-            : _description.text.trim(),
+        description:
+            _description.text.trim().isEmpty ? null : _description.text.trim(),
         imageUrl: imageUrl,
       );
 
@@ -204,8 +208,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                   Expanded(
                     child: TextFormField(
                       controller: _category,
-                      decoration:
-                          const InputDecoration(labelText: 'Category'),
+                      decoration: const InputDecoration(labelText: 'Category'),
                     ),
                   ),
                 ]),
@@ -242,10 +245,15 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                       controller: _stock,
                       keyboardType:
                           const TextInputType.numberWithOptions(decimal: true),
-                      decoration: const InputDecoration(
-                          labelText: 'Stock (manual)'),
-                      validator: (v) =>
-                          Validators.positiveNumber(v, field: 'Stock'),
+                      decoration:
+                          const InputDecoration(labelText: 'Opening stock'),
+                      validator: (v) {
+                        final required = Validators.required(v, field: 'Stock');
+                        if (required != null) return required;
+                        return num.tryParse(v!.trim()) == null
+                            ? 'Enter a valid stock number'
+                            : null;
+                      },
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -254,8 +262,8 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                       initialValue: _unit,
                       decoration: const InputDecoration(labelText: 'Unit'),
                       items: AppConstants.defaultUnits
-                          .map((u) =>
-                              DropdownMenuItem(value: u, child: Text(u)))
+                          .map(
+                              (u) => DropdownMenuItem(value: u, child: Text(u)))
                           .toList(),
                       onChanged: (v) => setState(() => _unit = v ?? 'pcs'),
                     ),
@@ -271,8 +279,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                 TextFormField(
                   controller: _description,
                   maxLines: 3,
-                  decoration:
-                      const InputDecoration(labelText: 'Description'),
+                  decoration: const InputDecoration(labelText: 'Description'),
                 ),
                 const SizedBox(height: 24),
                 FilledButton(

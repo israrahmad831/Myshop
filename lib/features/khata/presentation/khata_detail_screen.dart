@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/launchers.dart';
 import '../../../core/widgets/app_widgets.dart';
 import '../../customers/presentation/customer_providers.dart';
 import '../../shops/presentation/shop_providers.dart';
@@ -27,6 +28,7 @@ class KhataDetailScreen extends ConsumerWidget {
     final currency = shop?.currency ?? 'PKR';
     final canManage = shop?.canManage ?? false;
     final canCreate = shop?.canCreateReceipts ?? false;
+    final scheme = Theme.of(context).colorScheme;
 
     if (customer == null) {
       return Scaffold(
@@ -47,11 +49,36 @@ class KhataDetailScreen extends ConsumerWidget {
           ),
         ],
       ),
-      floatingActionButton: canCreate
-          ? FloatingActionButton.extended(
-              onPressed: () => context.push('/khata/new?customer=$customerId'),
-              icon: const Icon(Icons.add),
-              label: const Text('Add entry'),
+      bottomNavigationBar: canCreate
+          ? SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                            backgroundColor: Colors.green),
+                        onPressed: () => context
+                            .push('/khata/new?customer=$customerId&type=given'),
+                        icon: const Icon(Icons.south_west),
+                        label: const Text('Maine diye'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton.icon(
+                        style:
+                            FilledButton.styleFrom(backgroundColor: Colors.red),
+                        onPressed: () => context
+                            .push('/khata/new?customer=$customerId&type=taken'),
+                        icon: const Icon(Icons.north_east),
+                        label: const Text('Maine liye'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             )
           : null,
       body: Column(
@@ -60,13 +87,25 @@ class KhataDetailScreen extends ConsumerWidget {
           if (customer.phone != null)
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.phone_outlined, size: 15),
-                  const SizedBox(width: 6),
-                  Text(customer.phone!),
-                ],
+              child: InkWell(
+                onTap: () => dialPhone(customer.phone!),
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.phone, size: 16, color: scheme.primary),
+                      const SizedBox(width: 6),
+                      Text(customer.phone!,
+                          style: TextStyle(
+                              color: scheme.primary,
+                              fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                ),
               ),
             ),
           const Divider(height: 1),
@@ -176,11 +215,13 @@ class _LedgerTile extends StatelessWidget {
         child: Icon(positive ? Icons.south_west : Icons.north_east,
             color: positive ? Colors.green : Colors.red, size: 20),
       ),
-      title: Text(txn.type.label),
-      subtitle: Text([
-        Formatters.date(txn.date),
-        if (txn.note != null) txn.note,
-      ].whereType<String>().join(' · ')),
+      title: txn.note != null && txn.note!.trim().isNotEmpty
+          ? Text(txn.note!,
+              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600))
+          : Text(txn.type.label,
+              style:
+                  const TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+      subtitle: Text('${txn.type.label} · ${Formatters.date(txn.date)}'),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [

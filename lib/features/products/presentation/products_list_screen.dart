@@ -24,6 +24,7 @@ class ProductsListScreen extends ConsumerWidget {
     return Scaffold(
       floatingActionButton: canManage
           ? FloatingActionButton.extended(
+              heroTag: 'products-fab',
               onPressed: () => context.push('/products/new'),
               icon: const Icon(Icons.add),
               label: const Text('Add product'),
@@ -174,8 +175,7 @@ class _ProductTile extends StatelessWidget {
                   ),
           ),
         ),
-        title: Text(product.name,
-            maxLines: 1, overflow: TextOverflow.ellipsis),
+        title: Text(product.name, maxLines: 1, overflow: TextOverflow.ellipsis),
         subtitle: Text([
           if (product.brand != null) product.brand,
           '${Formatters.qty(product.currentStock)} ${product.unit}',

@@ -23,6 +23,7 @@ class CustomersListScreen extends ConsumerWidget {
     return Scaffold(
       floatingActionButton: canCreate
           ? FloatingActionButton.extended(
+              heroTag: 'customers-fab',
               onPressed: () => context.push('/customers/new'),
               icon: const Icon(Icons.person_add_alt),
               label: const Text('Add'),
@@ -79,8 +80,7 @@ class CustomersListScreen extends ConsumerWidget {
                                   Formatters.money(bal.abs(), currency),
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
-                                    color:
-                                        bal > 0 ? Colors.green : Colors.red,
+                                    color: bal > 0 ? Colors.green : Colors.red,
                                   ),
                                 ),
                         ),

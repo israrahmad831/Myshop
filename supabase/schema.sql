@@ -163,6 +163,7 @@ create table if not exists public.receipts (
   subtotal       numeric(14,2) not null default 0,  -- sum of line totals
   total          numeric(14,2) not null default 0,  -- subtotal - discount
   note           text,
+  image_url      text,   -- for uploaded photos of physical/handwritten receipts
   created_by     uuid references public.profiles(id) on delete set null,
   created_at     timestamptz not null default now(),
   updated_at     timestamptz not null default now(),

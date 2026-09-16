@@ -9,6 +9,7 @@ import '../../../core/local/outbox.dart';
 import '../../../core/local/sync_engine.dart';
 import '../../../core/network/connectivity.dart';
 import '../../../core/providers/core_providers.dart';
+import '../../products/data/products_repository.dart';
 import '../domain/receipt.dart';
 
 /// Repository for receipts + their line items. Receipts are independent records
@@ -19,12 +20,14 @@ class ReceiptsRepository {
     required this.box,
     required this.outbox,
     required this.isOnline,
+    required this.products,
   });
 
   final SupabaseClient client;
   final Box<Map> box; // caches full receipts (header + embedded items)
   final Outbox outbox;
   final bool isOnline;
+  final ProductsRepository products;
   static const _uuid = Uuid();
 
   Receipt _fromCache(Map m) {
@@ -78,9 +81,8 @@ class ReceiptsRepository {
       }).toList();
 
       // Refresh cache for this shop.
-      final staleKeys = box.keys
-          .where((k) => box.get(k)?['shop_id'] == shopId)
-          .toList();
+      final staleKeys =
+          box.keys.where((k) => box.get(k)?['shop_id'] == shopId).toList();
       await box.deleteAll(staleKeys);
       await box.putAll({for (final r in receipts) r.id: _toCache(r)});
       return receipts;
@@ -99,6 +101,31 @@ class ReceiptsRepository {
         .where((m) => m['shop_id'] == shopId)
         .map((m) => (m['receipt_number'] as num?)?.toInt() ?? 0);
     return (nums.isEmpty ? 0 : nums.reduce((a, b) => a > b ? a : b)) + 1;
+  }
+
+  Map<String, num> _stockDeltas(
+      List<ReceiptItem> before, List<ReceiptItem> after) {
+    final deltas = <String, num>{};
+    for (final item in before) {
+      if (item.productId != null) {
+        deltas.update(item.productId!, (value) => value + item.quantity,
+            ifAbsent: () => item.quantity);
+      }
+    }
+    for (final item in after) {
+      if (item.productId != null) {
+        deltas.update(item.productId!, (value) => value - item.quantity,
+            ifAbsent: () => -item.quantity);
+      }
+    }
+    deltas.removeWhere((_, delta) => delta == 0);
+    return deltas;
+  }
+
+  Future<void> _applyStockDeltas(Map<String, num> deltas) async {
+    for (final entry in deltas.entries) {
+      await products.adjustStock(entry.key, entry.value);
+    }
   }
 
   /// Creates a receipt and its items. Online: the DB assigns the receipt
@@ -133,6 +160,8 @@ class ReceiptsRepository {
       discount: draft.discount,
       note: draft.note,
       items: items,
+      imageUrl: draft.imageUrl,
+      amount: draft.amount,
     );
 
     if (!isOnline) {
@@ -153,6 +182,7 @@ class ReceiptsRepository {
           createdAt: DateTime.now(),
         ));
       }
+      await _applyStockDeltas(_stockDeltas(const [], items));
       return receipt;
     }
 
@@ -168,16 +198,92 @@ class ReceiptsRepository {
             it.toJson(receiptId: id, shopId: receipt.shopId),
         ]);
       }
-      final saved = Receipt.fromJson(header.cast<String, dynamic>(),
-          items: items);
+      final saved =
+          Receipt.fromJson(header.cast<String, dynamic>(), items: items);
       await box.put(id, _toCache(saved));
+      await _applyStockDeltas(_stockDeltas(const [], items));
       return saved;
     } catch (e) {
       throw mapError(e);
     }
   }
 
+  /// Edit an existing receipt: updates the header and replaces its line items.
+  /// The receipt number is preserved.
+  Future<Receipt> update(Receipt draft) async {
+    final id = draft.id;
+    final old = getCached(id);
+    final items = [
+      for (final it in draft.items)
+        it.id.isEmpty
+            ? ReceiptItem(
+                id: _uuid.v4(),
+                productId: it.productId,
+                productName: it.productName,
+                quantity: it.quantity,
+                unit: it.unit,
+                price: it.price,
+                discount: it.discount,
+              )
+            : it,
+    ];
+    final receipt = draft.copyWith(items: items);
+    await box.put(id, _toCache(receipt));
+
+    // Header payload without id / receipt_number (those don't change).
+    final header = receipt.toHeaderJson()
+      ..remove('id')
+      ..remove('receipt_number');
+
+    if (!isOnline) {
+      await outbox.enqueue(OutboxEntry(
+          id: id,
+          table: AppConstants.tblReceipts,
+          op: OutboxOp.update,
+          payload: header,
+          createdAt: DateTime.now()));
+      for (final it in old?.items ?? const <ReceiptItem>[]) {
+        await outbox.enqueue(OutboxEntry(
+            id: it.id,
+            table: AppConstants.tblReceiptItems,
+            op: OutboxOp.delete,
+            payload: const {},
+            createdAt: DateTime.now()));
+      }
+      for (final it in items) {
+        await outbox.enqueue(OutboxEntry(
+            id: it.id,
+            table: AppConstants.tblReceiptItems,
+            op: OutboxOp.insert,
+            payload: it.toJson(receiptId: id, shopId: receipt.shopId),
+            createdAt: DateTime.now()));
+      }
+      await _applyStockDeltas(_stockDeltas(old?.items ?? const [], items));
+      return receipt;
+    }
+
+    try {
+      await client.from(AppConstants.tblReceipts).update(header).eq('id', id);
+      await client
+          .from(AppConstants.tblReceiptItems)
+          .delete()
+          .eq('receipt_id', id);
+      if (items.isNotEmpty) {
+        await client.from(AppConstants.tblReceiptItems).insert([
+          for (final it in items)
+            it.toJson(receiptId: id, shopId: receipt.shopId),
+        ]);
+      }
+      await box.put(id, _toCache(receipt));
+      await _applyStockDeltas(_stockDeltas(old?.items ?? const [], items));
+      return receipt;
+    } catch (e) {
+      throw mapError(e);
+    }
+  }
+
   Future<void> delete(String id) async {
+    final old = getCached(id);
     await box.delete(id);
     if (!isOnline) {
       await outbox.enqueue(OutboxEntry(
@@ -187,11 +293,13 @@ class ReceiptsRepository {
         payload: const {},
         createdAt: DateTime.now(),
       ));
+      await _applyStockDeltas(_stockDeltas(old?.items ?? const [], const []));
       return;
     }
     try {
       // receipt_items cascade-delete via FK.
       await client.from(AppConstants.tblReceipts).delete().eq('id', id);
+      await _applyStockDeltas(_stockDeltas(old?.items ?? const [], const []));
     } catch (e) {
       throw mapError(e);
     }
@@ -204,5 +312,6 @@ final receiptsRepositoryProvider = Provider<ReceiptsRepository>((ref) {
     box: Hive.box<Map>(AppConstants.boxReceipts),
     outbox: ref.watch(outboxProvider),
     isOnline: ref.watch(isOnlineProvider),
+    products: ref.watch(productsRepositoryProvider),
   );
 });

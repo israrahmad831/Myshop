@@ -14,9 +14,11 @@ import '../../features/dashboard/presentation/home_gate.dart';
 import '../../features/dashboard/presentation/home_shell.dart';
 import '../../features/khata/presentation/khata_detail_screen.dart';
 import '../../features/khata/presentation/khata_entry_screen.dart';
+import '../../features/khata/domain/khata_transaction.dart';
 import '../../features/members/presentation/members_screen.dart';
 import '../../features/products/presentation/product_detail_screen.dart';
 import '../../features/products/presentation/product_form_screen.dart';
+import '../../features/receipts/presentation/photo_receipt_screen.dart';
 import '../../features/receipts/presentation/receipt_detail_screen.dart';
 import '../../features/receipts/presentation/receipt_form_screen.dart';
 import '../../features/reports/presentation/reports_screen.dart';
@@ -32,8 +34,7 @@ final routerProvider = Provider<GoRouter>((ref) {
 
   return GoRouter(
     initialLocation: '/',
-    refreshListenable:
-        GoRouterRefreshStream(authRepo.onAuthStateChange),
+    refreshListenable: GoRouterRefreshStream(authRepo.onAuthStateChange),
     redirect: (context, state) {
       final loggedIn = authRepo.currentSession != null;
       final verified = authRepo.isEmailVerified;
@@ -74,14 +75,11 @@ final routerProvider = Provider<GoRouter>((ref) {
           builder: (_, __) => const ResetPasswordScreen()),
 
       // Shop selection & shop CRUD.
-      GoRoute(
-          path: '/shops', builder: (_, __) => const ShopSelectionScreen()),
-      GoRoute(
-          path: '/shops/new', builder: (_, __) => const ShopFormScreen()),
+      GoRoute(path: '/shops', builder: (_, __) => const ShopSelectionScreen()),
+      GoRoute(path: '/shops/new', builder: (_, __) => const ShopFormScreen()),
       GoRoute(
         path: '/shops/edit',
-        builder: (_, state) =>
-            ShopFormScreen(existing: state.extra as dynamic),
+        builder: (_, state) => ShopFormScreen(existing: state.extra as dynamic),
       ),
 
       // Home gate decides between shop-selection and the main shell.
@@ -90,10 +88,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Main tabbed shell (dashboard / products / receipts / khata / more).
       GoRoute(
         path: '/home',
-        builder: (_, state) =>
-            HomeShell(initialTab: int.tryParse(
-                    state.uri.queryParameters['tab'] ?? '0') ??
-                0),
+        builder: (_, state) => HomeShell(
+            initialTab:
+                int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0),
       ),
 
       // Members.
@@ -128,6 +125,15 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, __) => const ReceiptFormScreen(),
       ),
       GoRoute(
+        path: '/receipts/photo',
+        builder: (_, __) => const PhotoReceiptScreen(),
+      ),
+      GoRoute(
+        path: '/receipts/:id/edit',
+        builder: (_, state) =>
+            ReceiptFormScreen(receiptId: state.pathParameters['id']),
+      ),
+      GoRoute(
         path: '/receipts/:id',
         builder: (_, state) =>
             ReceiptDetailScreen(receiptId: state.pathParameters['id']!),
@@ -154,6 +160,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/khata/new',
         builder: (_, state) => KhataEntryScreen(
           customerId: state.uri.queryParameters['customer']!,
+          initialType: state.uri.queryParameters['type'] == 'taken'
+              ? KhataType.udhaarTaken
+              : KhataType.udhaarGiven,
         ),
       ),
 

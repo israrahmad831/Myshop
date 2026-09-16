@@ -75,11 +75,20 @@ class ProductsRepository with OfflineRepository {
     return Product.fromJson(saved);
   }
 
+  /// Applies a stock movement through the normal cache/outbox write path.
+  /// Negative stock is valid when sales exceed recorded opening stock.
+  Future<Product?> adjustStock(String productId, num delta) async {
+    final product = getCached(productId);
+    if (product == null) return null;
+    return update(product.copyWith(currentStock: product.currentStock + delta));
+  }
+
   Future<void> delete(String id) => deleteRow(_table, id);
 
   /// Fire-and-forget analytics for the "top searched products" report.
   /// Online only; failures are ignored so search stays fast.
-  Future<void> recordSearch(String shopId, String productId, String term) async {
+  Future<void> recordSearch(
+      String shopId, String productId, String term) async {
     if (!isOnline) return;
     try {
       await client.rpc(AppConstants.rpcRecordSearch, params: {

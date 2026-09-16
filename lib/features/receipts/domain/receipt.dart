@@ -94,6 +94,8 @@ class Receipt extends Equatable {
     this.discount = 0,
     this.note,
     this.items = const [],
+    this.imageUrl,
+    this.amount,
   });
 
   final String id;
@@ -107,8 +109,18 @@ class Receipt extends Equatable {
   final String? note;
   final List<ReceiptItem> items;
 
-  num get subtotal =>
-      items.fold<num>(0, (sum, item) => sum + item.lineTotal);
+  /// Set for "photo receipts" — an uploaded image of a physical/handwritten
+  /// receipt (no line items).
+  final String? imageUrl;
+
+  /// Manual amount for a photo receipt (no items).
+  final num? amount;
+
+  bool get isPhoto => imageUrl != null && items.isEmpty;
+
+  num get subtotal => items.isEmpty
+      ? (amount ?? 0)
+      : items.fold<num>(0, (sum, item) => sum + item.lineTotal);
   num get total => subtotal - discount;
 
   factory Receipt.fromJson(Map<String, dynamic> j,
@@ -124,6 +136,9 @@ class Receipt extends Equatable {
         discount: (j['discount'] as num?) ?? 0,
         note: j['note'] as String?,
         items: items,
+        imageUrl: j['image_url'] as String?,
+        // For photo receipts (no items) the stored total is the manual amount.
+        amount: items.isEmpty ? (j['total'] as num?) : null,
       );
 
   /// Header row for the `receipts` table (items are inserted separately).
@@ -140,6 +155,7 @@ class Receipt extends Equatable {
         'subtotal': subtotal,
         'total': total,
         'note': note,
+        'image_url': imageUrl,
       };
 
   Receipt copyWith({
@@ -151,6 +167,8 @@ class Receipt extends Equatable {
     num? discount,
     String? note,
     List<ReceiptItem>? items,
+    String? imageUrl,
+    num? amount,
   }) =>
       Receipt(
         id: id,
@@ -163,8 +181,11 @@ class Receipt extends Equatable {
         discount: discount ?? this.discount,
         note: note ?? this.note,
         items: items ?? this.items,
+        imageUrl: imageUrl ?? this.imageUrl,
+        amount: amount ?? this.amount,
       );
 
   @override
-  List<Object?> get props => [id, receiptNumber, date, total, items];
+  List<Object?> get props =>
+      [id, receiptNumber, date, total, items, imageUrl];
 }

@@ -89,6 +89,7 @@ class Shop extends Equatable {
     String? currency,
     String? receiptFooter,
     String? receiptHeaderUrl,
+    bool clearReceiptHeaderUrl = false,
     String? ownerName,
     String? role,
   }) =>
@@ -101,7 +102,9 @@ class Shop extends Equatable {
         logoUrl: logoUrl ?? this.logoUrl,
         currency: currency ?? this.currency,
         receiptFooter: receiptFooter ?? this.receiptFooter,
-        receiptHeaderUrl: receiptHeaderUrl ?? this.receiptHeaderUrl,
+        receiptHeaderUrl: clearReceiptHeaderUrl
+            ? null
+            : (receiptHeaderUrl ?? this.receiptHeaderUrl),
         ownerName: ownerName ?? this.ownerName,
         role: role ?? this.role,
         createdAt: createdAt,

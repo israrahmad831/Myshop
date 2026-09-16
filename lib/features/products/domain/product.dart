@@ -1,8 +1,7 @@
 import 'package:equatable/equatable.dart';
 
-/// A product record. This module ONLY stores information — nothing here (and no
-/// receipt/khata action) ever changes [currentStock] automatically. Stock is a
-/// manual field the shopkeeper edits by hand.
+/// A product record. Opening stock is entered by the shopkeeper, then sale
+/// receipts adjust [currentStock] automatically.
 class Product extends Equatable {
   const Product({
     required this.id,
@@ -28,7 +27,7 @@ class Product extends Equatable {
   final String? category;
   final num purchasePrice;
   final num sellingPrice;
-  final num currentStock; // manual
+  final num currentStock;
   final String unit;
   final String? barcode;
   final String? description;

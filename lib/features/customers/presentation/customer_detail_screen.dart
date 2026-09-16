@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/launchers.dart';
 import '../../../core/widgets/app_widgets.dart';
+import '../data/customers_repository.dart';
 import '../../khata/data/khata_repository.dart';
 import '../../khata/domain/khata_transaction.dart';
 import '../../khata/presentation/khata_entry_screen.dart';
@@ -41,15 +43,39 @@ class CustomerDetailScreen extends ConsumerWidget {
           if (canManage)
             IconButton(
               icon: const Icon(Icons.edit_outlined),
-              onPressed: () =>
-                  context.push('/customers/$customerId/edit'),
+              onPressed: () => context.push('/customers/$customerId/edit'),
+            ),
+          if (canManage)
+            IconButton(
+              icon: const Icon(Icons.delete_outline),
+              tooltip: 'Delete customer',
+              onPressed: () async {
+                final ok = await confirmDialog(
+                  context,
+                  title: 'Delete customer?',
+                  message:
+                      'This removes the customer and their khata history. This cannot be undone.',
+                  confirmLabel: 'Delete',
+                  destructive: true,
+                );
+                if (!ok) return;
+                try {
+                  await ref
+                      .read(customersRepositoryProvider)
+                      .delete(customerId);
+                  ref.invalidate(customersProvider);
+                  ref.invalidate(khataTransactionsProvider);
+                  if (context.mounted) context.pop();
+                } catch (e) {
+                  if (context.mounted) showSnack(context, '$e', error: true);
+                }
+              },
             ),
         ],
       ),
       floatingActionButton: canCreate
           ? FloatingActionButton.extended(
-              onPressed: () =>
-                  context.push('/khata/new?customer=$customerId'),
+              onPressed: () => context.push('/khata/new?customer=$customerId'),
               icon: const Icon(Icons.add),
               label: const Text('Add entry'),
             )
@@ -74,9 +100,22 @@ class CustomerDetailScreen extends ConsumerWidget {
               child: Row(
                 children: [
                   if (customer.phone != null) ...[
-                    const Icon(Icons.phone_outlined, size: 16),
-                    const SizedBox(width: 4),
-                    Text(customer.phone!),
+                    InkWell(
+                      onTap: () => dialPhone(customer.phone!),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.phone,
+                              size: 16,
+                              color: Theme.of(context).colorScheme.primary),
+                          const SizedBox(width: 4),
+                          Text(customer.phone!,
+                              style: TextStyle(
+                                  color:
+                                      Theme.of(context).colorScheme.primary)),
+                        ],
+                      ),
+                    ),
                     const SizedBox(width: 16),
                   ],
                   if (customer.address != null)
