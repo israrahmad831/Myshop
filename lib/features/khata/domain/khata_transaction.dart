@@ -3,9 +3,9 @@ import 'package:equatable/equatable.dart';
 /// Direction of a khata (ledger) transaction. The signed contribution to the
 /// customer's balance is defined in [signedAmount].
 enum KhataType {
-  udhaarGiven('udhaar_given', 'Udhaar given', 'Customer owes you'),
+  udhaarGiven('udhaar_given', 'Maine Diye', 'Customer owes you'),
   paymentReceived('payment_received', 'Payment received', 'Customer paid you'),
-  udhaarTaken('udhaar_taken', 'Udhaar taken', 'You owe customer'),
+  udhaarTaken('udhaar_taken', 'Maine Liye', 'You owe customer'),
   paymentGiven('payment_given', 'Payment given', 'You paid customer');
 
   const KhataType(this.db, this.label, this.hint);
