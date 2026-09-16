@@ -78,84 +78,129 @@ class ReceiptPdfService {
     doc.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.a5,
-        build: (context) => pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+        margin: pw.EdgeInsets.zero,
+        build: (context) => pw.Stack(
           children: [
-            // Full-width header banner image; the uploaded image is the shop's
-            // branding (no shop text header, no stamp).
-            if (header != null) ...[
-              pw.Center(
-                  child: pw.Image(header, height: 100, fit: pw.BoxFit.contain)),
-              pw.SizedBox(height: 6),
-            ],
-            pw.Divider(),
-
-            // Meta
-            pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Text('Receipt #${receipt.receiptNumber}',
-                    style: const pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                pw.Text(Formatters.dateTime(receipt.date),
-                    style: const pw.TextStyle(fontSize: 10)),
-              ],
-            ),
-            if (receipt.customerName != null)
-              pw.Text('Customer: ${receipt.customerName}'),
-            if (receipt.customerPhone != null)
-              pw.Text('Phone: ${receipt.customerPhone}'),
-            pw.SizedBox(height: 8),
-
-            // Items table
-            pw.TableHelper.fromTextArray(
-              headerStyle: const pw.TextStyle(
-                  fontWeight: pw.FontWeight.bold, fontSize: 10),
-              cellStyle: const pw.TextStyle(fontSize: 10),
-              headerDecoration:
-                  const pw.BoxDecoration(color: PdfColors.grey300),
-              cellAlignments: {
-                0: pw.Alignment.centerLeft,
-                1: pw.Alignment.center,
-                2: pw.Alignment.center,
-                3: pw.Alignment.center,
-              },
-              headers: const ['Item', 'Qty', 'Price', 'Total'],
-              data: [
-                for (final it in receipt.items)
-                  [
-                    it.productName,
-                    it.qtyLabel(Formatters.qty),
-                    Formatters.qty(it.price),
-                    Formatters.qty(it.lineTotal),
-                  ],
-              ],
-            ),
-            pw.SizedBox(height: 8),
-
-            // Totals
-            _totalRow('Subtotal', Formatters.money(receipt.subtotal, currency)),
-            if (receipt.discount > 0)
-              _totalRow('Discount',
-                  '- ${Formatters.money(receipt.discount, currency)}'),
-            pw.Divider(),
-            _totalRow('TOTAL', Formatters.money(receipt.total, currency),
-                bold: true),
-
-            if (receipt.note != null && receipt.note!.trim().isNotEmpty) ...[
-              pw.SizedBox(height: 8),
-              pw.Text('Note: ${receipt.note}',
-                  style: const pw.TextStyle(fontSize: 10)),
-            ],
-
-            pw.Spacer(),
-
-            if (shop.receiptFooter != null &&
-                shop.receiptFooter!.trim().isNotEmpty)
-              pw.Center(
-                child: pw.Text(shop.receiptFooter!,
-                    style: const pw.TextStyle(
-                        fontSize: 10, color: PdfColors.grey700)),
+            if (header != null)
+              pw.Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: pw.SizedBox(
+                  height: 60,
+                  child: pw.Image(header, fit: pw.BoxFit.fitWidth),
+                ),
               ),
+            pw.Padding(
+              padding: pw.EdgeInsets.only(
+                top: header == null ? 18 : 66,
+                left: 18,
+                right: 18,
+                bottom: 18,
+              ),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+                children: [
+                  if (header == null) ...[
+                    pw.Center(
+                      child: pw.Text(
+                        shop.name,
+                        style: const pw.TextStyle(
+                            fontSize: 16, fontWeight: pw.FontWeight.bold),
+                      ),
+                    ),
+                    if (shop.ownerName != null &&
+                        shop.ownerName!.trim().isNotEmpty)
+                      pw.Center(
+                        child: pw.Text('Owner: ${shop.ownerName!}',
+                            style: const pw.TextStyle(fontSize: 9)),
+                      ),
+                    if (shop.address != null && shop.address!.trim().isNotEmpty)
+                      pw.Center(
+                        child: pw.Text(shop.address!,
+                            style: const pw.TextStyle(fontSize: 9)),
+                      ),
+                    if (shop.phone != null && shop.phone!.trim().isNotEmpty)
+                      pw.Center(
+                        child: pw.Text('Phone: ${shop.phone!}',
+                            style: const pw.TextStyle(fontSize: 9)),
+                      ),
+                    pw.SizedBox(height: 6),
+                  ],
+                  pw.Divider(),
+
+                  // Meta
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Text('Receipt #${receipt.receiptNumber}',
+                          style: const pw.TextStyle(
+                              fontWeight: pw.FontWeight.bold)),
+                      pw.Text(Formatters.dateTime(receipt.date),
+                          style: const pw.TextStyle(fontSize: 10)),
+                    ],
+                  ),
+                  if (receipt.customerName != null)
+                    pw.Text('Customer: ${receipt.customerName}'),
+                  if (receipt.customerPhone != null)
+                    pw.Text('Phone: ${receipt.customerPhone}'),
+                  pw.SizedBox(height: 8),
+
+                  // Items table
+                  pw.TableHelper.fromTextArray(
+                    headerStyle: const pw.TextStyle(
+                        fontWeight: pw.FontWeight.bold, fontSize: 10),
+                    cellStyle: const pw.TextStyle(fontSize: 10),
+                    headerDecoration:
+                        const pw.BoxDecoration(color: PdfColors.grey300),
+                    cellAlignments: {
+                      0: pw.Alignment.centerLeft,
+                      1: pw.Alignment.center,
+                      2: pw.Alignment.center,
+                      3: pw.Alignment.center,
+                    },
+                    headers: const ['Item', 'Qty', 'Price', 'Total'],
+                    data: [
+                      for (final it in receipt.items)
+                        [
+                          it.productName,
+                          it.qtyLabel(Formatters.qty),
+                          Formatters.qty(it.price),
+                          Formatters.qty(it.lineTotal),
+                        ],
+                    ],
+                  ),
+                  pw.SizedBox(height: 8),
+
+                  // Totals
+                  _totalRow(
+                      'Subtotal', Formatters.money(receipt.subtotal, currency)),
+                  if (receipt.discount > 0)
+                    _totalRow('Discount',
+                        '- ${Formatters.money(receipt.discount, currency)}'),
+                  pw.Divider(),
+                  _totalRow('TOTAL', Formatters.money(receipt.total, currency),
+                      bold: true),
+
+                  if (receipt.note != null &&
+                      receipt.note!.trim().isNotEmpty) ...[
+                    pw.SizedBox(height: 8),
+                    pw.Text('Note: ${receipt.note}',
+                        style: const pw.TextStyle(fontSize: 10)),
+                  ],
+
+                  pw.Spacer(),
+
+                  if (shop.receiptFooter != null &&
+                      shop.receiptFooter!.trim().isNotEmpty)
+                    pw.Center(
+                      child: pw.Text(shop.receiptFooter!,
+                          style: const pw.TextStyle(
+                              fontSize: 10, color: PdfColors.grey700)),
+                    ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
