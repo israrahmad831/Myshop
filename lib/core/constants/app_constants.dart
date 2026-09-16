@@ -14,6 +14,7 @@ class AppConstants {
   static const String tblReceipts = 'receipts';
   static const String tblReceiptItems = 'receipt_items';
   static const String tblKhata = 'khata_transactions';
+  static const String tblExpenses = 'expenses';
   static const String tblSearchStats = 'product_search_stats';
   static const String viewKhataBalances = 'customer_khata_balances';
 
@@ -30,6 +31,7 @@ class AppConstants {
   static const String boxCustomers = 'customers_box';
   static const String boxReceipts = 'receipts_box';
   static const String boxKhata = 'khata_box';
+  static const String boxExpenses = 'expenses_box';
   static const String boxOutbox = 'outbox_box'; // pending offline mutations
   static const String boxPrefs = 'prefs_box';
 
@@ -43,6 +45,15 @@ class AppConstants {
   static const Duration searchDebounce = Duration(milliseconds: 250);
   static const int lowStockThreshold = 5;
   static const List<String> defaultUnits = [
-    'pcs', 'kg', 'g', 'litre', 'ml', 'box', 'bag', 'gallon', 'roll', 'metre',
+    'pcs',
+    'kg',
+    'g',
+    'litre',
+    'ml',
+    'box',
+    'bag',
+    'gallon',
+    'roll',
+    'metre',
   ];
 }

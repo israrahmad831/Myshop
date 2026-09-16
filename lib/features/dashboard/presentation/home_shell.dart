@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/network/connectivity.dart';
 import '../../customers/presentation/customers_list_screen.dart';
+import '../../expenses/presentation/expenses_screen.dart';
 import '../../khata/presentation/khata_list_screen.dart';
 import '../../products/presentation/products_list_screen.dart';
 import '../../receipts/presentation/receipts_list_screen.dart';
@@ -30,9 +31,17 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     ReceiptsListScreen(),
     CustomersListScreen(),
     KhataListScreen(),
+    ExpensesScreen(),
   ];
 
-  static const _titles = ['Home', 'Products', 'Sales', 'Customers', 'Khata'];
+  static const _titles = [
+    'Home',
+    'Products',
+    'Sales',
+    'Customers',
+    'Khata',
+    'Expenses'
+  ];
 
   static const _destinations = <NavigationDestination>[
     NavigationDestination(
@@ -55,6 +64,10 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         icon: Icon(Icons.account_balance_wallet_outlined),
         selectedIcon: Icon(Icons.account_balance_wallet),
         label: 'Khata'),
+    NavigationDestination(
+        icon: Icon(Icons.payments_outlined),
+        selectedIcon: Icon(Icons.payments),
+        label: 'Expenses'),
   ];
 
   @override

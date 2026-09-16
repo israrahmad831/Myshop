@@ -73,11 +73,36 @@ class CustomerDetailScreen extends ConsumerWidget {
             ),
         ],
       ),
-      floatingActionButton: canCreate
-          ? FloatingActionButton.extended(
-              onPressed: () => context.push('/khata/new?customer=$customerId'),
-              icon: const Icon(Icons.add),
-              label: const Text('Add entry'),
+      bottomNavigationBar: canCreate
+          ? SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                            backgroundColor: Colors.green),
+                        onPressed: () => context
+                            .push('/khata/new?customer=$customerId&type=given'),
+                        icon: const Icon(Icons.south_west),
+                        label: const Text('Maine diye'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton.icon(
+                        style:
+                            FilledButton.styleFrom(backgroundColor: Colors.red),
+                        onPressed: () => context
+                            .push('/khata/new?customer=$customerId&type=taken'),
+                        icon: const Icon(Icons.north_east),
+                        label: const Text('Maine liye'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             )
           : null,
       body: Column(

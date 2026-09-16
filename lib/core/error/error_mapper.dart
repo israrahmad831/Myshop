@@ -16,6 +16,11 @@ Failure mapError(Object error) {
     return AuthFailure(error.message);
   }
   if (error is PostgrestException) {
+    if (error.code == 'PGRST205' ||
+        error.message.toLowerCase().contains('schema cache')) {
+      return const ServerFailure(
+          'Expenses are not set up in Supabase yet. Run supabase/expenses.sql in the Supabase SQL Editor, then try again.');
+    }
     // RLS violations surface as 401/403; unique violations as 23505.
     if (error.code == '23505') {
       return const ValidationFailure('That record already exists.');

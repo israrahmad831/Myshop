@@ -211,6 +211,21 @@ create table if not exists public.khata_transactions (
 create index if not exists idx_khata_shop on public.khata_transactions(shop_id);
 create index if not exists idx_khata_customer on public.khata_transactions(customer_id, date);
 
+-- EXPENSES -------------------------------------------------------------------
+create table if not exists public.expenses (
+  id         uuid primary key default gen_random_uuid(),
+  shop_id    uuid not null references public.shops(id) on delete cascade,
+  amount     numeric(14,2) not null check (amount > 0),
+  date       timestamptz not null default now(),
+  category   text,
+  note       text,
+  created_by uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists idx_expenses_shop_date
+  on public.expenses(shop_id, date desc);
+
 -- ============================================================================
 -- SEARCH ANALYTICS  (powers "Top searched products" report)
 -- ============================================================================
@@ -240,7 +255,7 @@ declare t text;
 begin
   foreach t in array array[
     'profiles','shops','shop_members','products','customers',
-    'receipts','khata_transactions'
+    'receipts','khata_transactions','expenses'
   ] loop
     execute format(
       'drop trigger if exists trg_%1$s_updated_at on public.%1$s;', t);

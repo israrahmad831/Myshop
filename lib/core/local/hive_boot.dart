@@ -16,6 +16,7 @@ class HiveBoot {
       Hive.openBox<Map>(AppConstants.boxCustomers),
       Hive.openBox<Map>(AppConstants.boxReceipts),
       Hive.openBox<Map>(AppConstants.boxKhata),
+      Hive.openBox<Map>(AppConstants.boxExpenses),
       Hive.openBox<Map>(AppConstants.boxOutbox),
       Hive.openBox(AppConstants.boxPrefs),
     ]);

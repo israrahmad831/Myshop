@@ -178,6 +178,8 @@ class _ProductTile extends StatelessWidget {
         title: Text(product.name, maxLines: 1, overflow: TextOverflow.ellipsis),
         subtitle: Text([
           if (product.brand != null) product.brand,
+          if (product.barcode != null && product.barcode!.trim().isNotEmpty)
+            'Barcode: ${product.barcode}',
           '${Formatters.qty(product.currentStock)} ${product.unit}',
         ].whereType<String>().join(' · ')),
         trailing: Column(

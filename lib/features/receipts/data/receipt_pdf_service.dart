@@ -87,13 +87,13 @@ class ReceiptPdfService {
                 left: 0,
                 right: 0,
                 child: pw.SizedBox(
-                  height: 60,
+                  height: 120,
                   child: pw.Image(header, fit: pw.BoxFit.fitWidth),
                 ),
               ),
             pw.Padding(
               padding: pw.EdgeInsets.only(
-                top: header == null ? 18 : 66,
+                top: header == null ? 18 : 126,
                 left: 18,
                 right: 18,
                 bottom: 18,
@@ -112,7 +112,7 @@ class ReceiptPdfService {
                     if (shop.ownerName != null &&
                         shop.ownerName!.trim().isNotEmpty)
                       pw.Center(
-                        child: pw.Text('Owner: ${shop.ownerName!}',
+                        child: pw.Text('${shop.ownerName!}',
                             style: const pw.TextStyle(fontSize: 9)),
                       ),
                     if (shop.address != null && shop.address!.trim().isNotEmpty)
